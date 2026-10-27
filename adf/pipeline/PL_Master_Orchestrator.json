@@ -2,89 +2,388 @@
     "name": "PL_Master_Orchestrator",
     "type": "Microsoft.DataFactory/factories/pipelines",
     "properties": {
-        "description": "End-to-end Medallion master orchestration pipeline. Triggers Raw -> Bronze ingestion, followed by Bronze -> Silver curation, and finally Silver -> Gold dimensional modeling.",
+        "description": "Production-grade Medallion Master Orchestrator. Manages concurrency locking, conditional stage execution (Raw->Bronze, Bronze->Silver, Silver->Gold), fault-tolerant audit recording, and stage failure alerting.",
         "activities": [
             {
-                "name": "EP_Raw_To_Bronze",
-                "type": "ExecutePipeline",
+                "name": "SP_LockMasterPipeline",
+                "type": "SqlServerStoredProcedure",
                 "dependsOn": [],
-                "userProperties": [],
                 "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
                     "secureInput": false
                 },
-                "typeProperties": {
-                    "pipeline": {
-                        "referenceName": "PL_Ingest_Raw_To_Bronze",
-                        "type": "PipelineReference"
+                "userProperties": [],
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_Metadata",
+                    "type": "LinkedServiceReference"
+                },
+                "storedProcedureName": "[dbo].[sp_LockPipeline]",
+                "storedProcedureParameters": {
+                    "PipelineName": {
+                        "value": "@pipeline().Pipeline",
+                        "type": "String"
                     },
-                    "waitOnCompletion": true
+                    "PipelineRunId": {
+                        "value": "@pipeline().RunId",
+                        "type": "String"
+                    },
+                    "TriggeredBy": {
+                        "value": "@pipeline().TriggerTime",
+                        "type": "String"
+                    }
                 }
             },
             {
-                "name": "EP_Bronze_To_Silver",
-                "type": "ExecutePipeline",
+                "name": "IF_Run_RawToBronze",
+                "type": "IfCondition",
                 "dependsOn": [
                     {
-                        "activity": "EP_Raw_To_Bronze",
+                        "activity": "SP_LockMasterPipeline",
                         "dependencyConditions": [
                             "Succeeded"
                         ]
                     }
                 ],
                 "userProperties": [],
-                "policy": {
-                    "secureInput": false
+                "expression": {
+                    "value": "@bool(pipeline().parameters.triggerRawToBronze)",
+                    "type": "Expression"
                 },
-                "typeProperties": {
-                    "pipeline": {
-                        "referenceName": "PL_BronzeToSilver",
-                        "type": "PipelineReference"
-                    },
-                    "waitOnCompletion": true
-                }
-            },
-            {
-                "name": "EP_Silver_To_Gold",
-                "type": "ExecutePipeline",
-                "dependsOn": [
+                "ifTrueActivities": [
                     {
-                        "activity": "EP_Bronze_To_Silver",
-                        "dependencyConditions": [
-                            "Succeeded"
-                        ]
-                    }
-                ],
-                "userProperties": [],
-                "policy": {
-                    "secureInput": false
-                },
-                "typeProperties": {
-                    "pipeline": {
-                        "referenceName": "PL_SilverToGold",
-                        "type": "PipelineReference"
-                    },
-                    "waitOnCompletion": true,
-                    "parameters": {
-                        "databricksHost": {
-                            "value": "@pipeline().parameters.databricksHost",
-                            "type": "Expression"
+                        "name": "EP_Raw_To_Bronze",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "policy": {
+                            "secureInput": false
                         },
-                        "goldJobId": {
-                            "value": "@pipeline().parameters.goldJobId",
-                            "type": "Expression"
-                        },
-                        "authMode": {
-                            "value": "@pipeline().parameters.authMode",
-                            "type": "Expression"
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "PL_Ingest_Raw_To_Bronze",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true
                         }
                     }
+                ]
+            },
+            {
+                "name": "ST_SetError_RawToBronze",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "IF_Run_RawToBronze",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "variableName": "errorMessage",
+                "value": {
+                    "value": "Raw -> Bronze ingestion stage failed during master orchestration.",
+                    "type": "Expression"
                 }
+            },
+            {
+                "name": "ST_SetStatus_RawToBronze_Failed",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "ST_SetError_RawToBronze",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "variableName": "orchestratorStatus",
+                "value": {
+                    "value": "Failed",
+                    "type": "Expression"
+                }
+            },
+            {
+                "name": "IF_Run_BronzeToSilver",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "IF_Run_RawToBronze",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "expression": {
+                    "value": "@bool(pipeline().parameters.triggerSilver)",
+                    "type": "Expression"
+                },
+                "ifTrueActivities": [
+                    {
+                        "name": "EP_Bronze_To_Silver",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "policy": {
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "PL_BronzeToSilver",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "ST_SetError_BronzeToSilver",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "IF_Run_BronzeToSilver",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "variableName": "errorMessage",
+                "value": {
+                    "value": "Bronze -> Silver curation stage failed during master orchestration.",
+                    "type": "Expression"
+                }
+            },
+            {
+                "name": "ST_SetStatus_BronzeToSilver_Failed",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "ST_SetError_BronzeToSilver",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "variableName": "orchestratorStatus",
+                "value": {
+                    "value": "Failed",
+                    "type": "Expression"
+                }
+            },
+            {
+                "name": "IF_Run_SilverToGold",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "IF_Run_BronzeToSilver",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "expression": {
+                    "value": "@bool(pipeline().parameters.triggerGold)",
+                    "type": "Expression"
+                },
+                "ifTrueActivities": [
+                    {
+                        "name": "EP_Silver_To_Gold",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "policy": {
+                            "secureInput": false
+                        },
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "PL_SilverToGold",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "databricksHost": {
+                                    "value": "@pipeline().parameters.databricksHost",
+                                    "type": "Expression"
+                                },
+                                "goldJobId": {
+                                    "value": "@pipeline().parameters.goldJobId",
+                                    "type": "Expression"
+                                },
+                                "authMode": {
+                                    "value": "@pipeline().parameters.authMode",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "ST_SetError_SilverToGold",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "IF_Run_SilverToGold",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "variableName": "errorMessage",
+                "value": {
+                    "value": "Silver -> Gold dimensional curation stage failed during master orchestration.",
+                    "type": "Expression"
+                }
+            },
+            {
+                "name": "ST_SetStatus_SilverToGold_Failed",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "ST_SetError_SilverToGold",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "variableName": "orchestratorStatus",
+                "value": {
+                    "value": "Failed",
+                    "type": "Expression"
+                }
+            },
+            {
+                "name": "SP_UnlockMasterPipeline",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "IF_Run_SilverToGold",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    },
+                    {
+                        "activity": "ST_SetStatus_RawToBronze_Failed",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    },
+                    {
+                        "activity": "ST_SetStatus_BronzeToSilver_Failed",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    },
+                    {
+                        "activity": "ST_SetStatus_SilverToGold_Failed",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_Metadata",
+                    "type": "LinkedServiceReference"
+                },
+                "storedProcedureName": "[dbo].[sp_UnlockPipeline]",
+                "storedProcedureParameters": {
+                    "PipelineName": {
+                        "value": "@pipeline().Pipeline",
+                        "type": "String"
+                    },
+                    "PipelineRunId": {
+                        "value": "@pipeline().RunId",
+                        "type": "String"
+                    },
+                    "Status": {
+                        "value": "@variables('orchestratorStatus')",
+                        "type": "String"
+                    },
+                    "RowsProcessed": {
+                        "value": 0,
+                        "type": "Int"
+                    },
+                    "RowsFailed": {
+                        "value": "@if(equals(variables('orchestratorStatus'), 'Success'), 0, 1)",
+                        "type": "Int"
+                    },
+                    "ErrorMessage": {
+                        "value": "@variables('errorMessage')",
+                        "type": "String"
+                    }
+                }
+            },
+            {
+                "name": "IF_CheckMasterSuccess",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "SP_UnlockMasterPipeline",
+                        "dependencyConditions": [
+                            "Completed"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "expression": {
+                    "value": "@equals(variables('orchestratorStatus'), 'Success')",
+                    "type": "Expression"
+                },
+                "ifTrueActivities": [],
+                "ifFalseActivities": [
+                    {
+                        "name": "FAIL_MasterOrchestrator",
+                        "type": "Fail",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "message": {
+                            "value": "@variables('errorMessage')",
+                            "type": "Expression"
+                        },
+                        "errorCode": "500"
+                    }
+                ]
             }
         ],
         "parameters": {
+            "triggerRawToBronze": {
+                "type": "bool",
+                "defaultValue": true
+            },
+            "triggerSilver": {
+                "type": "bool",
+                "defaultValue": true
+            },
+            "triggerGold": {
+                "type": "bool",
+                "defaultValue": true
+            },
             "databricksHost": {
                 "type": "string",
                 "defaultValue": "https://adb-7405610723825637.17.azuredatabricks.net"
+            },
+            "silverJobId": {
+                "type": "string",
+                "defaultValue": "383135890940752"
             },
             "goldJobId": {
                 "type": "string",
@@ -95,10 +394,21 @@
                 "defaultValue": "auto"
             }
         },
+        "variables": {
+            "orchestratorStatus": {
+                "type": "String",
+                "defaultValue": "Success"
+            },
+            "errorMessage": {
+                "type": "String",
+                "defaultValue": ""
+            }
+        },
         "annotations": [
             "northwind",
             "orchestrator",
-            "medallion"
+            "medallion",
+            "production"
         ]
     }
 }
