@@ -54,20 +54,54 @@
                 },
                 "ifTrueActivities": [
                     {
-                        "name": "EP_Raw_To_Bronze",
-                        "type": "ExecutePipeline",
+                        "name": "IF_Engine_AutoLoader",
+                        "type": "IfCondition",
                         "dependsOn": [],
                         "userProperties": [],
-                        "policy": {
-                            "secureInput": false
+                        "expression": {
+                            "value": "@equals(pipeline().parameters.bronzeEngine, 'Databricks_AutoLoader')",
+                            "type": "Expression"
                         },
-                        "typeProperties": {
-                            "pipeline": {
-                                "referenceName": "PL_Ingest_Raw_To_Bronze",
-                                "type": "PipelineReference"
-                            },
-                            "waitOnCompletion": true
-                        }
+                        "ifTrueActivities": [
+                            {
+                                "name": "EP_Raw_To_Bronze_Databricks",
+                                "type": "ExecutePipeline",
+                                "typeProperties": {
+                                    "pipeline": {
+                                        "referenceName": "PL_Raw_To_Bronze_Databricks",
+                                        "type": "PipelineReference"
+                                    },
+                                    "waitOnCompletion": true,
+                                    "parameters": {
+                                        "databricksHost": {
+                                            "value": "@pipeline().parameters.databricksHost",
+                                            "type": "Expression"
+                                        },
+                                        "bronzeJobId": {
+                                            "value": "@pipeline().parameters.bronzeJobId",
+                                            "type": "Expression"
+                                        },
+                                        "authMode": {
+                                            "value": "@pipeline().parameters.authMode",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            }
+                        ],
+                        "ifFalseActivities": [
+                            {
+                                "name": "EP_Raw_To_Bronze_ADF",
+                                "type": "ExecutePipeline",
+                                "typeProperties": {
+                                    "pipeline": {
+                                        "referenceName": "PL_Ingest_Raw_To_Bronze",
+                                        "type": "PipelineReference"
+                                    },
+                                    "waitOnCompletion": true
+                                }
+                            }
+                        ]
                     }
                 ]
             },
@@ -365,6 +399,14 @@
             }
         ],
         "parameters": {
+            "bronzeEngine": {
+                "type": "string",
+                "defaultValue": "Databricks_AutoLoader"
+            },
+            "bronzeJobId": {
+                "type": "string",
+                "defaultValue": "383135890940751"
+            },
             "triggerRawToBronze": {
                 "type": "bool",
                 "defaultValue": true

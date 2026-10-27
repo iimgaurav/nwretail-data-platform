@@ -53,8 +53,11 @@ nwretail-data-platform/
 
 ## 🔄 End-to-End Medallion Architecture
 
-1. **Ingestion (Raw → Bronze)**:
-   - ADF pipeline `PL_Ingest_Raw_To_Bronze` copies CSVs into `abfss://bronze@nwretaildatalake65.dfs.core.windows.net/`.
+1. **Ingestion (Raw → Bronze Delta Lake)**:
+   - **Primary Engine**: Databricks Auto Loader notebook [`NB_Raw_To_Bronze_AutoLoader.py`](file:///c:/Users/Navneet/.gemini/antigravity-ide/scratch/nwretail-data-platform/databricks/Bronze/NB_Raw_To_Bronze_AutoLoader.py) triggered by ADF `PL_Raw_To_Bronze_Databricks`.
+   - Streaming read via `cloudFiles` with schema evolution, rescued data column (`_rescued_data`), and audit metadata (`_ingested_at`, `_source_file`, `_batch_id`, `_run_id`).
+   - Writes atomic ACID appends directly into Delta tables in Unity Catalog: `nwretail_databricks_dev.bronze.*`.
+   - **Fallback**: ADF metadata-driven copy pipeline `PL_Ingest_Raw_To_Bronze`.
 2. **Standardization & Cleansing (Bronze → Silver)**:
    - ADF `PL_BronzeToSilver` acquires audit lock in Azure SQL DB (`sp_LockPipeline`), triggers Databricks job `nwretail_silver_pipeline`, polls completion, extracts exit payload, and logs audit metrics (`sp_UnlockPipeline`).
    - Generates SCD Type-2 versions for Customers & Products, and Delta tables for Transactions, Returns, Inventory, and Stores.
@@ -63,8 +66,9 @@ nwretail-data-platform/
    - Produces Star Schema dimensions (`dim_customer`, `dim_date`, `dim_product`, `dim_store`) and facts (`fact_sales`, `fact_returns`, `fact_inventory`).
    - Delta tables are saved directly into `abfss://gold@nwretaildatalake65.dfs.core.windows.net/` and exposed in Unity Catalog catalog `nwretail_databricks_dev.gold.*`.
    - Exposes analytical views: `vw_sales_summary`, `vw_product_performance`, `vw_store_performance`.
-4. **Master Orchestrator**:
-   - ADF `PL_Master_Orchestrator` runs the complete medallion pipeline sequentially: `PL_Ingest_Raw_To_Bronze` -> `PL_BronzeToSilver` -> `PL_SilverToGold`.
+4. **Master Orchestrator & Maintenance**:
+   - ADF `PL_Master_Orchestrator` runs the complete medallion pipeline sequentially with stage-level fault isolation: Bronze Delta (`PL_Raw_To_Bronze_Databricks`) ➔ Silver (`PL_BronzeToSilver`) ➔ Gold (`PL_SilverToGold`).
+   - ADF `PL_Delta_Maintenance` triggers weekly `OPTIMIZE` with `ZORDER` and `VACUUM` (`NB_Delta_Maintenance.py`).
 
 ---
 

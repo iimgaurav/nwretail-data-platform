@@ -1,0 +1,148 @@
+{
+    "name": "PL_Delta_Maintenance",
+    "type": "Microsoft.DataFactory/factories/pipelines",
+    "properties": {
+        "description": "Weekly maintenance orchestration for Delta Lake tables. Triggers OPTIMIZE with Z-ORDER and VACUUM across Bronze, Silver, and Gold layers.",
+        "activities": [
+            {
+                "name": "SP_LockMaintenance",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_Metadata",
+                    "type": "LinkedServiceReference"
+                },
+                "storedProcedureName": "[dbo].[sp_LockPipeline]",
+                "storedProcedureParameters": {
+                    "PipelineName": {
+                        "value": "@pipeline().Pipeline",
+                        "type": "String"
+                    },
+                    "PipelineRunId": {
+                        "value": "@pipeline().RunId",
+                        "type": "String"
+                    },
+                    "TriggeredBy": {
+                        "value": "@pipeline().TriggerTime",
+                        "type": "String"
+                    }
+                }
+            },
+            {
+                "name": "WB_Trigger_Maintenance",
+                "type": "WebActivity",
+                "dependsOn": [
+                    {
+                        "activity": "SP_LockMaintenance",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.00:10:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "method": "POST",
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "url": {
+                    "value": "@concat(pipeline().parameters.databricksHost, '/api/2.1/jobs/run-now')",
+                    "type": "Expression"
+                },
+                "body": {
+                    "value": "@json(concat('{\"job_id\":', pipeline().parameters.maintenanceJobId, ',\"notebook_params\":{\"retention_hours\":\"', pipeline().parameters.retentionHours, '\"}}'))",
+                    "type": "Expression"
+                },
+                "authentication": {
+                    "type": "MSI",
+                    "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+                }
+            },
+            {
+                "name": "SP_UnlockMaintenance",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "WB_Trigger_Maintenance",
+                        "dependencyConditions": [
+                            "Completed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_Metadata",
+                    "type": "LinkedServiceReference"
+                },
+                "storedProcedureName": "[dbo].[sp_UnlockPipeline]",
+                "storedProcedureParameters": {
+                    "PipelineName": {
+                        "value": "@pipeline().Pipeline",
+                        "type": "String"
+                    },
+                    "PipelineRunId": {
+                        "value": "@pipeline().RunId",
+                        "type": "String"
+                    },
+                    "Status": {
+                        "value": "@if(equals(activity('WB_Trigger_Maintenance').status, 'Succeeded'), 'Success', 'Failed')",
+                        "type": "String"
+                    },
+                    "RowsProcessed": {
+                        "value": 0,
+                        "type": "Int"
+                    },
+                    "RowsFailed": {
+                        "value": 0,
+                        "type": "Int"
+                    },
+                    "ErrorMessage": {
+                        "value": "@if(equals(activity('WB_Trigger_Maintenance').status, 'Succeeded'), '', 'Maintenance job failed to trigger')",
+                        "type": "String"
+                    }
+                }
+            }
+        ],
+        "parameters": {
+            "databricksHost": {
+                "type": "string",
+                "defaultValue": "https://adb-7405610723825637.17.azuredatabricks.net"
+            },
+            "maintenanceJobId": {
+                "type": "string",
+                "defaultValue": "383135890940754"
+            },
+            "retentionHours": {
+                "type": "string",
+                "defaultValue": "168"
+            }
+        },
+        "annotations": [
+            "northwind",
+            "maintenance",
+            "optimize",
+            "vacuum"
+        ]
+    }
+}
