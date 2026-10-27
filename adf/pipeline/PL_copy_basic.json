@@ -1,0 +1,143 @@
+﻿{
+    "activities":  [
+                       {
+                           "additionalProperties":  null,
+                           "dataIntegrationUnits":  null,
+                           "dependsOn":  [
+
+                                         ],
+                           "description":  null,
+                           "enableSkipIncompatibleRow":  null,
+                           "enableStaging":  false,
+                           "inputs":  [
+                                          {
+                                              "parameters":  {
+
+                                                             },
+                                              "referenceName":  "DS_inputcsv",
+                                              "type":  "DatasetReference"
+                                          }
+                                      ],
+                           "linkedServiceName":  null,
+                           "logSettings":  null,
+                           "logStorageSettings":  null,
+                           "name":  "Copy data1",
+                           "onInactiveMarkAs":  null,
+                           "outputs":  [
+                                           {
+                                               "parameters":  {
+
+                                                              },
+                                               "referenceName":  "ds_output",
+                                               "type":  "DatasetReference"
+                                           }
+                                       ],
+                           "parallelCopies":  null,
+                           "policy":  {
+                                          "additionalProperties":  null,
+                                          "retry":  0,
+                                          "retryIntervalInSeconds":  30,
+                                          "secureInput":  false,
+                                          "secureOutput":  false,
+                                          "timeout":  "0.12:00:00"
+                                      },
+                           "preserve":  null,
+                           "preserveRules":  null,
+                           "redirectIncompatibleRowSettings":  null,
+                           "sink":  {
+                                        "additionalProperties":  null,
+                                        "disableMetricsCollection":  null,
+                                        "formatSettings":  {
+                                                               "additionalProperties":  null,
+                                                               "fileExtension":  ".txt",
+                                                               "fileNamePrefix":  null,
+                                                               "maxRowsPerFile":  null,
+                                                               "quoteAllText":  true,
+                                                               "type":  "DelimitedTextWriteSettings"
+                                                           },
+                                        "maxConcurrentConnections":  null,
+                                        "sinkRetryCount":  null,
+                                        "sinkRetryWait":  null,
+                                        "storeSettings":  {
+                                                              "additionalProperties":  null,
+                                                              "blockSizeInMb":  null,
+                                                              "copyBehavior":  null,
+                                                              "disableMetricsCollection":  null,
+                                                              "maxConcurrentConnections":  null,
+                                                              "metadata":  null,
+                                                              "type":  "AzureBlobStorageWriteSettings"
+                                                          },
+                                        "type":  "DelimitedTextSink",
+                                        "writeBatchSize":  null,
+                                        "writeBatchTimeout":  null
+                                    },
+                           "skipErrorFile":  null,
+                           "source":  {
+                                          "additionalColumns":  null,
+                                          "additionalProperties":  null,
+                                          "disableMetricsCollection":  null,
+                                          "formatSettings":  {
+                                                                 "additionalProperties":  null,
+                                                                 "compressionProperties":  null,
+                                                                 "skipLineCount":  null,
+                                                                 "type":  "DelimitedTextReadSettings"
+                                                             },
+                                          "maxConcurrentConnections":  null,
+                                          "sourceRetryCount":  null,
+                                          "sourceRetryWait":  null,
+                                          "storeSettings":  {
+                                                                "additionalProperties":  null,
+                                                                "deleteFilesAfterCompletion":  null,
+                                                                "disableMetricsCollection":  null,
+                                                                "enablePartitionDiscovery":  false,
+                                                                "fileListPath":  null,
+                                                                "maxConcurrentConnections":  null,
+                                                                "modifiedDatetimeEnd":  null,
+                                                                "modifiedDatetimeStart":  null,
+                                                                "partitionRootPath":  null,
+                                                                "prefix":  null,
+                                                                "recursive":  true,
+                                                                "type":  "AzureBlobStorageReadSettings",
+                                                                "wildcardFileName":  null,
+                                                                "wildcardFolderPath":  null
+                                                            },
+                                          "type":  "DelimitedTextSource"
+                                      },
+                           "stagingSettings":  null,
+                           "state":  null,
+                           "translator":  {
+                                              "type":  "TabularTranslator",
+                                              "typeConversion":  true,
+                                              "typeConversionSettings":  {
+                                                                             "allowDataTruncation":  true,
+                                                                             "treatBooleanAsNumber":  false
+                                                                         }
+                                          },
+                           "type":  "Copy",
+                           "userProperties":  [
+
+                                              ],
+                           "validateDataConsistency":  null
+                       }
+                   ],
+    "additionalProperties":  null,
+    "annotations":  [
+
+                    ],
+    "concurrency":  null,
+    "description":  null,
+    "etag":  "c804aa45-0000-0100-0000-6ac1f7340000",
+    "folder":  null,
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/pipelines/PL_copy_basic",
+    "name":  "PL_copy_basic",
+    "parameters":  null,
+    "policy":  {
+                   "elapsedTimeMetric":  {
+                                             "duration":  null
+                                         }
+               },
+    "resourceGroup":  "data_test",
+    "runDimensions":  null,
+    "type":  "Microsoft.DataFactory/factories/pipelines",
+    "variables":  null
+}

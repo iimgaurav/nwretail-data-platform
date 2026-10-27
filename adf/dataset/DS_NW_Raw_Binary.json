@@ -1,0 +1,41 @@
+﻿{
+    "etag":  "35057129-0000-0100-0000-6ad3ad260000",
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/datasets/DS_NW_Raw_Binary",
+    "name":  "DS_NW_Raw_Binary",
+    "properties":  {
+                       "additionalProperties":  null,
+                       "annotations":  [
+
+                                       ],
+                       "compression":  null,
+                       "description":  null,
+                       "folder":  null,
+                       "linkedServiceName":  {
+                                                 "parameters":  null,
+                                                 "referenceName":  "LS_ADLS_NorthWind_MI",
+                                                 "type":  "LinkedServiceReference"
+                                             },
+                       "location":  {
+                                        "additionalProperties":  null,
+                                        "fileName":  null,
+                                        "fileSystem":  "@dataset().pContainer",
+                                        "folderPath":  "@dataset().pFolder",
+                                        "type":  "AzureBlobFSLocation"
+                                    },
+                       "parameters":  {
+                                          "pContainer":  {
+                                                             "defaultValue":  "raw",
+                                                             "type":  "string"
+                                                         },
+                                          "pFolder":  {
+                                                          "defaultValue":  "sales_transactions",
+                                                          "type":  "string"
+                                                      }
+                                      },
+                       "schema":  null,
+                       "structure":  null,
+                       "type":  "Binary"
+                   },
+    "resourceGroup":  "data_test",
+    "type":  "Microsoft.DataFactory/factories/datasets"
+}

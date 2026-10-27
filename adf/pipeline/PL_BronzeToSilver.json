@@ -1,0 +1,720 @@
+﻿{
+    "activities":  [
+                       {
+                           "additionalProperties":  null,
+                           "dependsOn":  [
+
+                                         ],
+                           "description":  "Acquires the pipeline execution lock so two silver runs cannot overlap. Retry is deliberately 0: replaying a lock acquisition is not idempotent.",
+                           "linkedServiceName":  {
+                                                     "parameters":  null,
+                                                     "referenceName":  "LS_AzureSQL_Metadata",
+                                                     "type":  "LinkedServiceReference"
+                                                 },
+                           "name":  "SP_LockPipeline",
+                           "onInactiveMarkAs":  null,
+                           "policy":  {
+                                          "additionalProperties":  null,
+                                          "retry":  0,
+                                          "retryIntervalInSeconds":  30,
+                                          "secureInput":  false,
+                                          "secureOutput":  false,
+                                          "timeout":  "0.01:00:00"
+                                      },
+                           "state":  null,
+                           "storedProcedureName":  "[dbo].[sp_LockPipeline]",
+                           "storedProcedureParameters":  {
+                                                             "PipelineName":  {
+                                                                                  "type":  "String",
+                                                                                  "value":  "@pipeline().Pipeline"
+                                                                              },
+                                                             "PipelineRunId":  {
+                                                                                   "type":  "String",
+                                                                                   "value":  "@pipeline().RunId"
+                                                                               },
+                                                             "TriggeredBy":  {
+                                                                                 "type":  "String",
+                                                                                 "value":  "@pipeline().TriggerTime"
+                                                                             }
+                                                         },
+                           "type":  "SqlServerStoredProcedure",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "additionalProperties":  null,
+                           "authentication":  {
+                                                  "credential":  null,
+                                                  "password":  null,
+                                                  "pfx":  null,
+                                                  "resource":  "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d",
+                                                  "type":  "MSI",
+                                                  "userTenant":  null,
+                                                  "username":  null
+                                              },
+                           "body":  {
+                                        "job_id":  383135890940752,
+                                        "notebook_params":  {
+                                                                "auth_mode":  "auto",
+                                                                "continue_on_error":  "false"
+                                                            }
+                                    },
+                           "connectVia":  null,
+                           "datasets":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "SP_LockPipeline",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Starts the Databricks job that runs NB_Bronze_To_Silver, authenticated with the factory managed identity. Retry MUST stay 0: jobs/run-now is not idempotent, and a replay starts a second run that max_concurrent_runs then skips.",
+                           "disableCertValidation":  false,
+                           "headers":  {
+                                           "Content-Type":  "application/json"
+                                       },
+                           "httpRequestTimeout":  null,
+                           "linkedServiceName":  null,
+                           "linkedServices":  null,
+                           "method":  "POST",
+                           "name":  "WB_Trigger_Run",
+                           "onInactiveMarkAs":  null,
+                           "policy":  {
+                                          "additionalProperties":  null,
+                                          "retry":  0,
+                                          "retryIntervalInSeconds":  null,
+                                          "secureInput":  false,
+                                          "secureOutput":  false,
+                                          "timeout":  "0.00:10:00"
+                                      },
+                           "state":  null,
+                           "turnOffAsync":  null,
+                           "type":  "WebActivity",
+                           "url":  "https://adb-7405610723825637.17.azuredatabricks.net/api/2.1/jobs/run-now",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "additionalProperties":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "WB_Trigger_Run",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Captures the Databricks job run id used by the polling loop.",
+                           "name":  "ST_SetRunId",
+                           "onInactiveMarkAs":  null,
+                           "policy":  null,
+                           "setSystemVariable":  null,
+                           "state":  null,
+                           "type":  "SetVariable",
+                           "userProperties":  [
+
+                                              ],
+                           "value":  {
+                                         "type":  "Expression",
+                                         "value":  "@string(activity(\u0027WB_Trigger_Run\u0027).output.run_id)"
+                                     },
+                           "variableName":  "runId"
+                       },
+                       {
+                           "activities":  [
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dependsOn":  [
+
+                                                                ],
+                                                  "description":  "Spacing between status polls.",
+                                                  "name":  "WT_Poll",
+                                                  "onInactiveMarkAs":  null,
+                                                  "state":  null,
+                                                  "type":  "Wait",
+                                                  "userProperties":  [
+
+                                                                     ],
+                                                  "waitTimeInSeconds":  30
+                                              },
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "authentication":  {
+                                                                         "credential":  null,
+                                                                         "password":  null,
+                                                                         "pfx":  null,
+                                                                         "resource":  "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d",
+                                                                         "type":  "MSI",
+                                                                         "userTenant":  null,
+                                                                         "username":  null
+                                                                     },
+                                                  "body":  null,
+                                                  "connectVia":  null,
+                                                  "datasets":  null,
+                                                  "dependsOn":  [
+                                                                    {
+                                                                        "activity":  "WT_Poll",
+                                                                        "additionalProperties":  null,
+                                                                        "dependencyConditions":  [
+                                                                                                     "Succeeded"
+                                                                                                 ]
+                                                                    }
+                                                                ],
+                                                  "description":  "Reads the current run state and the per-task run id. GET is idempotent, so retries are safe here.",
+                                                  "disableCertValidation":  false,
+                                                  "headers":  null,
+                                                  "httpRequestTimeout":  null,
+                                                  "linkedServiceName":  null,
+                                                  "linkedServices":  null,
+                                                  "method":  "GET",
+                                                  "name":  "WB_Get_Run",
+                                                  "onInactiveMarkAs":  null,
+                                                  "policy":  {
+                                                                 "additionalProperties":  null,
+                                                                 "retry":  3,
+                                                                 "retryIntervalInSeconds":  15,
+                                                                 "secureInput":  false,
+                                                                 "secureOutput":  false,
+                                                                 "timeout":  "0.00:10:00"
+                                                             },
+                                                  "state":  null,
+                                                  "turnOffAsync":  null,
+                                                  "type":  "WebActivity",
+                                                  "url":  {
+                                                              "type":  "Expression",
+                                                              "value":  "https://adb-7405610723825637.17.azuredatabricks.net/api/2.1/jobs/runs/get?run_id=@{variables(\u0027runId\u0027)}"
+                                                          },
+                                                  "userProperties":  [
+
+                                                                     ]
+                                              },
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dependsOn":  [
+                                                                    {
+                                                                        "activity":  "WB_Get_Run",
+                                                                        "additionalProperties":  null,
+                                                                        "dependencyConditions":  [
+                                                                                                     "Succeeded"
+                                                                                                 ]
+                                                                    }
+                                                                ],
+                                                  "description":  "Feeds the loop condition.",
+                                                  "name":  "ST_SetLifeCycle",
+                                                  "onInactiveMarkAs":  null,
+                                                  "policy":  null,
+                                                  "setSystemVariable":  null,
+                                                  "state":  null,
+                                                  "type":  "SetVariable",
+                                                  "userProperties":  [
+
+                                                                     ],
+                                                  "value":  {
+                                                                "type":  "Expression",
+                                                                "value":  "@string(activity(\u0027WB_Get_Run\u0027).output.state.life_cycle_state)"
+                                                            },
+                                                  "variableName":  "lifeCycle"
+                                              }
+                                          ],
+                           "additionalProperties":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "ST_SetRunId",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Polls the Databricks run until it reaches a terminal lifecycle state.",
+                           "expression":  {
+                                              "type":  "Expression",
+                                              "value":  "@or(or(equals(variables(\u0027lifeCycle\u0027), \u0027TERMINATED\u0027), equals(variables(\u0027lifeCycle\u0027), \u0027SKIPPED\u0027)), equals(variables(\u0027lifeCycle\u0027), \u0027INTERNAL_ERROR\u0027))"
+                                          },
+                           "name":  "UNTIL_RunComplete",
+                           "onInactiveMarkAs":  null,
+                           "state":  null,
+                           "timeout":  "0.02:00:00",
+                           "type":  "Until",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "additionalProperties":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "UNTIL_RunComplete",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Terminal result state of the Databricks run: SUCCESS, FAILED, TIMEDOUT, SKIPPED or MAXIMUM_CONCURRENT_RUNS_REACHED.",
+                           "name":  "ST_SetResultState",
+                           "onInactiveMarkAs":  null,
+                           "policy":  null,
+                           "setSystemVariable":  null,
+                           "state":  null,
+                           "type":  "SetVariable",
+                           "userProperties":  [
+
+                                              ],
+                           "value":  {
+                                         "type":  "Expression",
+                                         "value":  "@string(activity(\u0027WB_Get_Run\u0027).output.state.result_state)"
+                                     },
+                           "variableName":  "resultState"
+                       },
+                       {
+                           "additionalProperties":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "ST_SetResultState",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Only a SUCCESS run has a task with an output. Guarding here keeps the notebook_output expression from ever being evaluated for a skipped or crashed run.",
+                           "expression":  {
+                                              "type":  "Expression",
+                                              "value":  "@equals(variables(\u0027resultState\u0027), \u0027SUCCESS\u0027)"
+                                          },
+                           "ifFalseActivities":  [
+                                                     {
+                                                         "additionalProperties":  null,
+                                                         "dependsOn":  [
+
+                                                                       ],
+                                                         "description":  "Explains a run that never produced a result, e.g. skipped by max_concurrent_runs.",
+                                                         "name":  "ST_SetRunFailureMsg",
+                                                         "onInactiveMarkAs":  null,
+                                                         "policy":  null,
+                                                         "setSystemVariable":  null,
+                                                         "state":  null,
+                                                         "type":  "SetVariable",
+                                                         "userProperties":  [
+
+                                                                            ],
+                                                         "value":  {
+                                                                       "type":  "Expression",
+                                                                       "value":  "@concat(\u0027Databricks run did not succeed (life_cycle_state=\u0027, variables(\u0027lifeCycle\u0027), \u0027, result_state=\u0027, variables(\u0027resultState\u0027), \u0027); the notebook never reached dbutils.notebook.exit.\u0027)"
+                                                                   },
+                                                         "variableName":  "errorMsg"
+                                                     }
+                                                 ],
+                           "ifTrueActivities":  [
+                                                    {
+                                                        "additionalProperties":  null,
+                                                        "authentication":  {
+                                                                               "credential":  null,
+                                                                               "password":  null,
+                                                                               "pfx":  null,
+                                                                               "resource":  "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d",
+                                                                               "type":  "MSI",
+                                                                               "userTenant":  null,
+                                                                               "username":  null
+                                                                           },
+                                                        "body":  null,
+                                                        "connectVia":  null,
+                                                        "datasets":  null,
+                                                        "dependsOn":  [
+
+                                                                      ],
+                                                        "description":  "Fetches the notebook exit payload. Runs API requires the task-level run id, not the job run id.",
+                                                        "disableCertValidation":  false,
+                                                        "headers":  null,
+                                                        "httpRequestTimeout":  null,
+                                                        "linkedServiceName":  null,
+                                                        "linkedServices":  null,
+                                                        "method":  "GET",
+                                                        "name":  "WB_Get_Output",
+                                                        "onInactiveMarkAs":  null,
+                                                        "policy":  {
+                                                                       "additionalProperties":  null,
+                                                                       "retry":  2,
+                                                                       "retryIntervalInSeconds":  15,
+                                                                       "secureInput":  false,
+                                                                       "secureOutput":  false,
+                                                                       "timeout":  "0.00:10:00"
+                                                                   },
+                                                        "state":  null,
+                                                        "turnOffAsync":  null,
+                                                        "type":  "WebActivity",
+                                                        "url":  {
+                                                                    "type":  "Expression",
+                                                                    "value":  "https://adb-7405610723825637.17.azuredatabricks.net/api/2.1/jobs/runs/get-output?run_id=@{activity(\u0027WB_Get_Run\u0027).output.tasks[0].run_id}"
+                                                                },
+                                                        "userProperties":  [
+
+                                                                           ]
+                                                    },
+                                                    {
+                                                        "additionalProperties":  null,
+                                                        "dependsOn":  [
+                                                                          {
+                                                                              "activity":  "WB_Get_Output",
+                                                                              "additionalProperties":  null,
+                                                                              "dependencyConditions":  [
+                                                                                                           "Succeeded"
+                                                                                                       ]
+                                                                          }
+                                                                      ],
+                                                        "description":  "Keeps the raw JSON; defaults to {} when the notebook died before exiting.",
+                                                        "name":  "ST_SetRawOutput",
+                                                        "onInactiveMarkAs":  null,
+                                                        "policy":  null,
+                                                        "setSystemVariable":  null,
+                                                        "state":  null,
+                                                        "type":  "SetVariable",
+                                                        "userProperties":  [
+
+                                                                           ],
+                                                        "value":  {
+                                                                      "type":  "Expression",
+                                                                      "value":  "@coalesce(activity(\u0027WB_Get_Output\u0027).output.notebook_output.result, \u0027{}\u0027)"
+                                                                  },
+                                                        "variableName":  "rawOutput"
+                                                    },
+                                                    {
+                                                        "additionalProperties":  null,
+                                                        "dependsOn":  [
+                                                                          {
+                                                                              "activity":  "ST_SetRawOutput",
+                                                                              "additionalProperties":  null,
+                                                                              "dependencyConditions":  [
+                                                                                                           "Succeeded"
+                                                                                                       ]
+                                                                          }
+                                                                      ],
+                                                        "description":  "SUCCESS / PARTIAL / FAILED as reported by the orchestrator.",
+                                                        "name":  "ST_SetResultStatus",
+                                                        "onInactiveMarkAs":  null,
+                                                        "policy":  null,
+                                                        "setSystemVariable":  null,
+                                                        "state":  null,
+                                                        "type":  "SetVariable",
+                                                        "userProperties":  [
+
+                                                                           ],
+                                                        "value":  {
+                                                                      "type":  "Expression",
+                                                                      "value":  "@if(equals(variables(\u0027rawOutput\u0027), \u0027{}\u0027), \u0027FAILED\u0027, coalesce(json(variables(\u0027rawOutput\u0027)).status, \u0027FAILED\u0027))"
+                                                                  },
+                                                        "variableName":  "resultStatus"
+                                                    },
+                                                    {
+                                                        "additionalProperties":  null,
+                                                        "dependsOn":  [
+                                                                          {
+                                                                              "activity":  "ST_SetResultStatus",
+                                                                              "additionalProperties":  null,
+                                                                              "dependencyConditions":  [
+                                                                                                           "Succeeded"
+                                                                                                       ]
+                                                                          }
+                                                                      ],
+                                                        "description":  "Total rows written across all entities.",
+                                                        "name":  "ST_SetRowsWritten",
+                                                        "onInactiveMarkAs":  null,
+                                                        "policy":  null,
+                                                        "setSystemVariable":  null,
+                                                        "state":  null,
+                                                        "type":  "SetVariable",
+                                                        "userProperties":  [
+
+                                                                           ],
+                                                        "value":  {
+                                                                      "type":  "Expression",
+                                                                      "value":  "@if(equals(variables(\u0027rawOutput\u0027), \u0027{}\u0027), 0, int(coalesce(json(variables(\u0027rawOutput\u0027)).rows_written_total, 0)))"
+                                                                  },
+                                                        "variableName":  "rowsWritten"
+                                                    },
+                                                    {
+                                                        "additionalProperties":  null,
+                                                        "dependsOn":  [
+                                                                          {
+                                                                              "activity":  "ST_SetRowsWritten",
+                                                                              "additionalProperties":  null,
+                                                                              "dependencyConditions":  [
+                                                                                                           "Succeeded"
+                                                                                                       ]
+                                                                          }
+                                                                      ],
+                                                        "description":  "How many entities failed.",
+                                                        "name":  "ST_SetRowsFailed",
+                                                        "onInactiveMarkAs":  null,
+                                                        "policy":  null,
+                                                        "setSystemVariable":  null,
+                                                        "state":  null,
+                                                        "type":  "SetVariable",
+                                                        "userProperties":  [
+
+                                                                           ],
+                                                        "value":  {
+                                                                      "type":  "Expression",
+                                                                      "value":  "@if(equals(variables(\u0027rawOutput\u0027), \u0027{}\u0027), 6, int(coalesce(json(variables(\u0027rawOutput\u0027)).entities_failed, 6)))"
+                                                                  },
+                                                        "variableName":  "rowsFailed"
+                                                    },
+                                                    {
+                                                        "additionalProperties":  null,
+                                                        "dependsOn":  [
+                                                                          {
+                                                                              "activity":  "ST_SetRowsFailed",
+                                                                              "additionalProperties":  null,
+                                                                              "dependencyConditions":  [
+                                                                                                           "Succeeded"
+                                                                                                       ]
+                                                                          }
+                                                                      ],
+                                                        "description":  "First failing entity\u0027s error, surfaced to the audit table.",
+                                                        "name":  "ST_SetErrorMsg",
+                                                        "onInactiveMarkAs":  null,
+                                                        "policy":  null,
+                                                        "setSystemVariable":  null,
+                                                        "state":  null,
+                                                        "type":  "SetVariable",
+                                                        "userProperties":  [
+
+                                                                           ],
+                                                        "value":  {
+                                                                      "type":  "Expression",
+                                                                      "value":  "@if(equals(variables(\u0027rawOutput\u0027), \u0027{}\u0027), \u0027Silver notebook produced no exit payload.\u0027, coalesce(json(variables(\u0027rawOutput\u0027)).error_summary, \u0027\u0027))"
+                                                                  },
+                                                        "variableName":  "errorMsg"
+                                                    }
+                                                ],
+                           "name":  "IF_RunSucceeded",
+                           "onInactiveMarkAs":  null,
+                           "state":  null,
+                           "type":  "IfCondition",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "additionalProperties":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "IF_RunSucceeded",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Completed"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Branches on the orchestrator status field, not on the task result.",
+                           "expression":  {
+                                              "type":  "Expression",
+                                              "value":  "@equals(variables(\u0027resultStatus\u0027), \u0027SUCCESS\u0027)"
+                                          },
+                           "ifFalseActivities":  [
+                                                     {
+                                                         "additionalProperties":  null,
+                                                         "dependsOn":  [
+
+                                                                       ],
+                                                         "description":  null,
+                                                         "name":  "ST_MarkFailed",
+                                                         "onInactiveMarkAs":  null,
+                                                         "policy":  null,
+                                                         "setSystemVariable":  null,
+                                                         "state":  null,
+                                                         "type":  "SetVariable",
+                                                         "userProperties":  [
+
+                                                                            ],
+                                                         "value":  {
+                                                                       "type":  "Expression",
+                                                                       "value":  "Failed"
+                                                                   },
+                                                         "variableName":  "pipelineStatus"
+                                                     },
+                                                     {
+                                                         "additionalProperties":  null,
+                                                         "dependsOn":  [
+                                                                           {
+                                                                               "activity":  "ST_MarkFailed",
+                                                                               "additionalProperties":  null,
+                                                                               "dependencyConditions":  [
+                                                                                                            "Succeeded"
+                                                                                                        ]
+                                                                           }
+                                                                       ],
+                                                         "description":  "Fails the pipeline with the orchestrator\u0027s own error text.",
+                                                         "errorCode":  {
+                                                                           "type":  "Expression",
+                                                                           "value":  "SilverPipelineNotSucceeded"
+                                                                       },
+                                                         "message":  {
+                                                                         "type":  "Expression",
+                                                                         "value":  "@concat(\u0027Silver layer did not fully succeed (status=\u0027, variables(\u0027resultStatus\u0027), \u0027). \u0027, variables(\u0027errorMsg\u0027))"
+                                                                     },
+                                                         "name":  "FA_ReportFailure",
+                                                         "onInactiveMarkAs":  null,
+                                                         "state":  null,
+                                                         "type":  "Fail",
+                                                         "userProperties":  [
+
+                                                                            ]
+                                                     }
+                                                 ],
+                           "ifTrueActivities":  [
+                                                    {
+                                                        "additionalProperties":  null,
+                                                        "dependsOn":  [
+
+                                                                      ],
+                                                        "description":  null,
+                                                        "name":  "ST_MarkCompleted",
+                                                        "onInactiveMarkAs":  null,
+                                                        "policy":  null,
+                                                        "setSystemVariable":  null,
+                                                        "state":  null,
+                                                        "type":  "SetVariable",
+                                                        "userProperties":  [
+
+                                                                           ],
+                                                        "value":  {
+                                                                      "type":  "Expression",
+                                                                      "value":  "Completed"
+                                                                  },
+                                                        "variableName":  "pipelineStatus"
+                                                    }
+                                                ],
+                           "name":  "IF_SilverSucceeded",
+                           "onInactiveMarkAs":  null,
+                           "state":  null,
+                           "type":  "IfCondition",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "additionalProperties":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "IF_SilverSucceeded",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Completed"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Releases the lock and writes real metrics. Runs on both outcomes so a failure cannot strand the lock.",
+                           "linkedServiceName":  {
+                                                     "parameters":  null,
+                                                     "referenceName":  "LS_AzureSQL_Metadata",
+                                                     "type":  "LinkedServiceReference"
+                                                 },
+                           "name":  "SP_UnlockPipeline",
+                           "onInactiveMarkAs":  null,
+                           "policy":  {
+                                          "additionalProperties":  null,
+                                          "retry":  2,
+                                          "retryIntervalInSeconds":  30,
+                                          "secureInput":  false,
+                                          "secureOutput":  false,
+                                          "timeout":  "0.01:00:00"
+                                      },
+                           "state":  null,
+                           "storedProcedureName":  "[dbo].[sp_UnlockPipeline]",
+                           "storedProcedureParameters":  {
+                                                             "ErrorMessage":  {
+                                                                                  "type":  "String",
+                                                                                  "value":  "@variables(\u0027errorMsg\u0027)"
+                                                                              },
+                                                             "PipelineName":  {
+                                                                                  "type":  "String",
+                                                                                  "value":  "@pipeline().Pipeline"
+                                                                              },
+                                                             "PipelineRunId":  {
+                                                                                   "type":  "String",
+                                                                                   "value":  "@pipeline().RunId"
+                                                                               },
+                                                             "RowsFailed":  {
+                                                                                "type":  "Int",
+                                                                                "value":  "@variables(\u0027rowsFailed\u0027)"
+                                                                            },
+                                                             "RowsProcessed":  {
+                                                                                   "type":  "Int",
+                                                                                   "value":  "@variables(\u0027rowsWritten\u0027)"
+                                                                               },
+                                                             "Status":  {
+                                                                            "type":  "String",
+                                                                            "value":  "@variables(\u0027pipelineStatus\u0027)"
+                                                                        }
+                                                         },
+                           "type":  "SqlServerStoredProcedure",
+                           "userProperties":  [
+
+                                              ]
+                       }
+                   ],
+    "additionalProperties":  null,
+    "annotations":  [
+                        "northwind",
+                        "silver",
+                        "databricks"
+                    ],
+    "concurrency":  null,
+    "description":  "Bronze -\u003e Silver orchestration. Triggers the Databricks serverless job, polls it, parses the orchestrator\u0027s JSON status, and records real metrics on the pipeline lock row. Fails the pipeline unless every silver entity succeeded.",
+    "etag":  "a106b593-0000-0100-0000-6adf4b530000",
+    "folder":  null,
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/pipelines/PL_BronzeToSilver",
+    "name":  "PL_BronzeToSilver",
+    "parameters":  {
+
+                   },
+    "policy":  null,
+    "resourceGroup":  "data_test",
+    "runDimensions":  null,
+    "type":  "Microsoft.DataFactory/factories/pipelines",
+    "variables":  {
+                      "errorMsg":  {
+                                       "defaultValue":  "Silver pipeline produced no result payload; inspect the Data Factory activity error.",
+                                       "type":  "String"
+                                   },
+                      "lifeCycle":  {
+                                        "defaultValue":  "PENDING",
+                                        "type":  "String"
+                                    },
+                      "pipelineStatus":  {
+                                             "defaultValue":  "Failed",
+                                             "type":  "String"
+                                         },
+                      "rawOutput":  {
+                                        "defaultValue":  "{}",
+                                        "type":  "String"
+                                    },
+                      "resultState":  {
+                                          "defaultValue":  "",
+                                          "type":  "String"
+                                      },
+                      "resultStatus":  {
+                                           "defaultValue":  "FAILED",
+                                           "type":  "String"
+                                       },
+                      "rowsFailed":  {
+                                         "defaultValue":  6,
+                                         "type":  "Integer"
+                                     },
+                      "rowsWritten":  {
+                                          "defaultValue":  0,
+                                          "type":  "Integer"
+                                      },
+                      "runId":  {
+                                    "defaultValue":  "",
+                                    "type":  "String"
+                                }
+                  }
+}

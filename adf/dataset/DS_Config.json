@@ -1,0 +1,49 @@
+﻿{
+    "etag":  "c8045dd0-0000-0100-0000-6ac25f510000",
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/datasets/DS_Config",
+    "name":  "DS_Config",
+    "properties":  {
+                       "additionalProperties":  null,
+                       "annotations":  [
+
+                                       ],
+                       "columnDelimiter":  ",",
+                       "compressionCodec":  null,
+                       "compressionLevel":  null,
+                       "description":  null,
+                       "encodingName":  null,
+                       "escapeChar":  "\\",
+                       "firstRowAsHeader":  true,
+                       "folder":  null,
+                       "linkedServiceName":  {
+                                                 "parameters":  null,
+                                                 "referenceName":  "LS_BlobStorage",
+                                                 "type":  "LinkedServiceReference"
+                                             },
+                       "location":  {
+                                        "additionalProperties":  null,
+                                        "container":  "config",
+                                        "fileName":  "file_config.csv",
+                                        "folderPath":  "config",
+                                        "type":  "AzureBlobStorageLocation"
+                                    },
+                       "nullValue":  null,
+                       "parameters":  null,
+                       "quoteChar":  "\"",
+                       "rowDelimiter":  null,
+                       "schema":  [
+                                      {
+                                          "name":  "file_name",
+                                          "type":  "String"
+                                      },
+                                      {
+                                          "name":  "folder_name",
+                                          "type":  "String"
+                                      }
+                                  ],
+                       "structure":  null,
+                       "type":  "DelimitedText"
+                   },
+    "resourceGroup":  "data_test",
+    "type":  "Microsoft.DataFactory/factories/datasets"
+}

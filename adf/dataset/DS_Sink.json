@@ -1,0 +1,74 @@
+﻿{
+    "etag":  "c80463d0-0000-0100-0000-6ac25f510000",
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/datasets/DS_Sink",
+    "name":  "DS_Sink",
+    "properties":  {
+                       "additionalProperties":  null,
+                       "annotations":  [
+
+                                       ],
+                       "columnDelimiter":  ",",
+                       "compressionCodec":  null,
+                       "compressionLevel":  null,
+                       "description":  null,
+                       "encodingName":  null,
+                       "escapeChar":  "\\",
+                       "firstRowAsHeader":  true,
+                       "folder":  null,
+                       "linkedServiceName":  {
+                                                 "parameters":  null,
+                                                 "referenceName":  "LS_BlobStorage",
+                                                 "type":  "LinkedServiceReference"
+                                             },
+                       "location":  {
+                                        "additionalProperties":  null,
+                                        "container":  "output",
+                                        "fileName":  "@dataset().p_file",
+                                        "folderPath":  "@dataset().p_folder",
+                                        "type":  "AzureBlobStorageLocation"
+                                    },
+                       "nullValue":  null,
+                       "parameters":  {
+                                          "p_file":  {
+                                                         "defaultValue":  null,
+                                                         "type":  "string"
+                                                     },
+                                          "p_folder":  {
+                                                           "defaultValue":  null,
+                                                           "type":  "string"
+                                                       }
+                                      },
+                       "quoteChar":  "\"",
+                       "rowDelimiter":  null,
+                       "schema":  [
+                                      {
+                                          "name":  "id",
+                                          "type":  "String"
+                                      },
+                                      {
+                                          "name":  "name",
+                                          "type":  "String"
+                                      },
+                                      {
+                                          "name":  "city",
+                                          "type":  "String"
+                                      },
+                                      {
+                                          "name":  "age",
+                                          "type":  "String"
+                                      },
+                                      {
+                                          "name":  "join_date",
+                                          "type":  "String"
+                                      },
+                                      {
+                                          "name":  "salary",
+                                          "type":  "String"
+                                      }
+                                  ],
+                       "structure":  null,
+                       "type":  "DelimitedText"
+                   },
+    "resourceGroup":  "data_test",
+    "type":  "Microsoft.DataFactory/factories/datasets"
+}

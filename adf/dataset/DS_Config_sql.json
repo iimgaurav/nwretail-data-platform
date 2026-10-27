@@ -1,0 +1,75 @@
+﻿{
+    "etag":  "dd04f673-0000-0100-0000-6ac5dd6a0000",
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/datasets/DS_Config_sql",
+    "name":  "DS_Config_sql",
+    "properties":  {
+                       "additionalProperties":  null,
+                       "annotations":  [
+
+                                       ],
+                       "description":  null,
+                       "folder":  null,
+                       "linkedServiceName":  {
+                                                 "parameters":  null,
+                                                 "referenceName":  "LS_AzureSQL_Metadata",
+                                                 "type":  "LinkedServiceReference"
+                                             },
+                       "parameters":  null,
+                       "schema":  [
+                                      {
+                                          "name":  "ConfigID",
+                                          "precision":  10,
+                                          "type":  "int"
+                                      },
+                                      {
+                                          "name":  "SourceContainer",
+                                          "type":  "varchar"
+                                      },
+                                      {
+                                          "name":  "SourceFolder",
+                                          "type":  "varchar"
+                                      },
+                                      {
+                                          "name":  "TargetContainer",
+                                          "type":  "varchar"
+                                      },
+                                      {
+                                          "name":  "TargetFolder",
+                                          "type":  "varchar"
+                                      },
+                                      {
+                                          "name":  "SourceFormat",
+                                          "type":  "varchar"
+                                      },
+                                      {
+                                          "name":  "TargetFormat",
+                                          "type":  "varchar"
+                                      },
+                                      {
+                                          "name":  "LoadType",
+                                          "type":  "varchar"
+                                      },
+                                      {
+                                          "name":  "IsActive",
+                                          "type":  "bit"
+                                      },
+                                      {
+                                          "name":  "CreatedDate",
+                                          "scale":  7,
+                                          "type":  "datetime2"
+                                      },
+                                      {
+                                          "name":  "ModifiedDate",
+                                          "scale":  7,
+                                          "type":  "datetime2"
+                                      }
+                                  ],
+                       "schemaTypePropertiesSchema":  "dbo",
+                       "structure":  null,
+                       "table":  "ADF_Pipeline_Config",
+                       "tableName":  null,
+                       "type":  "AzureSqlTable"
+                   },
+    "resourceGroup":  "data_test",
+    "type":  "Microsoft.DataFactory/factories/datasets"
+}

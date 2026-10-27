@@ -1,0 +1,30 @@
+﻿{
+    "etag":  "32056fe0-0000-0100-0000-6ad346d80000",
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/linkedservices/LS_ADLS_NorthWind_MI",
+    "name":  "LS_ADLS_NorthWind_MI",
+    "properties":  {
+                       "accountKey":  null,
+                       "additionalProperties":  null,
+                       "annotations":  [
+
+                                       ],
+                       "azureCloudType":  null,
+                       "connectVia":  null,
+                       "credential":  null,
+                       "description":  null,
+                       "encryptedCredential":  null,
+                       "parameters":  null,
+                       "sasToken":  null,
+                       "sasUri":  null,
+                       "servicePrincipalCredential":  null,
+                       "servicePrincipalCredentialType":  null,
+                       "servicePrincipalId":  null,
+                       "servicePrincipalKey":  null,
+                       "tenant":  null,
+                       "type":  "AzureBlobFS",
+                       "url":  "https://nwretaildatalake65.dfs.core.windows.net/",
+                       "version":  null
+                   },
+    "resourceGroup":  "data_test",
+    "type":  "Microsoft.DataFactory/factories/linkedservices"
+}

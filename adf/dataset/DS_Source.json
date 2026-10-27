@@ -1,0 +1,47 @@
+﻿{
+    "etag":  "c8045fd0-0000-0100-0000-6ac25f510000",
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/datasets/DS_Source",
+    "name":  "DS_Source",
+    "properties":  {
+                       "additionalProperties":  null,
+                       "annotations":  [
+
+                                       ],
+                       "columnDelimiter":  ",",
+                       "compressionCodec":  null,
+                       "compressionLevel":  null,
+                       "description":  null,
+                       "encodingName":  null,
+                       "escapeChar":  "\\",
+                       "firstRowAsHeader":  true,
+                       "folder":  null,
+                       "linkedServiceName":  {
+                                                 "parameters":  null,
+                                                 "referenceName":  "LS_BlobStorage",
+                                                 "type":  "LinkedServiceReference"
+                                             },
+                       "location":  {
+                                        "additionalProperties":  null,
+                                        "container":  "input",
+                                        "fileName":  "@dataset().p_file_name",
+                                        "folderPath":  null,
+                                        "type":  "AzureBlobStorageLocation"
+                                    },
+                       "nullValue":  null,
+                       "parameters":  {
+                                          "p_file_name":  {
+                                                              "defaultValue":  null,
+                                                              "type":  "string"
+                                                          }
+                                      },
+                       "quoteChar":  "\"",
+                       "rowDelimiter":  null,
+                       "schema":  [
+
+                                  ],
+                       "structure":  null,
+                       "type":  "DelimitedText"
+                   },
+    "resourceGroup":  "data_test",
+    "type":  "Microsoft.DataFactory/factories/datasets"
+}

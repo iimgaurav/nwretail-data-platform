@@ -1,0 +1,42 @@
+﻿{
+    "etag":  "c804633b-0000-0100-0000-6ac1ef330000",
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/datasets/ds_output",
+    "name":  "ds_output",
+    "properties":  {
+                       "additionalProperties":  null,
+                       "annotations":  [
+
+                                       ],
+                       "columnDelimiter":  ",",
+                       "compressionCodec":  null,
+                       "compressionLevel":  null,
+                       "description":  null,
+                       "encodingName":  null,
+                       "escapeChar":  "\\",
+                       "firstRowAsHeader":  true,
+                       "folder":  null,
+                       "linkedServiceName":  {
+                                                 "parameters":  null,
+                                                 "referenceName":  "demotestlinkservice65",
+                                                 "type":  "LinkedServiceReference"
+                                             },
+                       "location":  {
+                                        "additionalProperties":  null,
+                                        "container":  "output",
+                                        "fileName":  null,
+                                        "folderPath":  null,
+                                        "type":  "AzureBlobStorageLocation"
+                                    },
+                       "nullValue":  null,
+                       "parameters":  null,
+                       "quoteChar":  "\"",
+                       "rowDelimiter":  null,
+                       "schema":  [
+
+                                  ],
+                       "structure":  null,
+                       "type":  "DelimitedText"
+                   },
+    "resourceGroup":  "data_test",
+    "type":  "Microsoft.DataFactory/factories/datasets"
+}

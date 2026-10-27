@@ -1,0 +1,246 @@
+﻿{
+    "activities":  [
+                       {
+                           "additionalProperties":  null,
+                           "dataset":  {
+                                           "parameters":  {
+
+                                                          },
+                                           "referenceName":  "DS_Config",
+                                           "type":  "DatasetReference"
+                                       },
+                           "dependsOn":  [
+
+                                         ],
+                           "description":  null,
+                           "firstRowOnly":  false,
+                           "linkedServiceName":  null,
+                           "name":  "LKP_File_Config",
+                           "onInactiveMarkAs":  null,
+                           "policy":  {
+                                          "additionalProperties":  null,
+                                          "retry":  0,
+                                          "retryIntervalInSeconds":  30,
+                                          "secureInput":  false,
+                                          "secureOutput":  false,
+                                          "timeout":  "0.12:00:00"
+                                      },
+                           "source":  {
+                                          "additionalColumns":  null,
+                                          "additionalProperties":  null,
+                                          "disableMetricsCollection":  null,
+                                          "formatSettings":  {
+                                                                 "additionalProperties":  null,
+                                                                 "compressionProperties":  null,
+                                                                 "skipLineCount":  null,
+                                                                 "type":  "DelimitedTextReadSettings"
+                                                             },
+                                          "maxConcurrentConnections":  null,
+                                          "sourceRetryCount":  null,
+                                          "sourceRetryWait":  null,
+                                          "storeSettings":  {
+                                                                "additionalProperties":  null,
+                                                                "deleteFilesAfterCompletion":  null,
+                                                                "disableMetricsCollection":  null,
+                                                                "enablePartitionDiscovery":  false,
+                                                                "fileListPath":  null,
+                                                                "maxConcurrentConnections":  null,
+                                                                "modifiedDatetimeEnd":  null,
+                                                                "modifiedDatetimeStart":  null,
+                                                                "partitionRootPath":  null,
+                                                                "prefix":  null,
+                                                                "recursive":  true,
+                                                                "type":  "AzureBlobStorageReadSettings",
+                                                                "wildcardFileName":  null,
+                                                                "wildcardFolderPath":  null
+                                                            },
+                                          "type":  "DelimitedTextSource"
+                                      },
+                           "state":  null,
+                           "type":  "Lookup",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "activities":  [
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dataIntegrationUnits":  null,
+                                                  "dependsOn":  [
+
+                                                                ],
+                                                  "description":  null,
+                                                  "enableSkipIncompatibleRow":  null,
+                                                  "enableStaging":  false,
+                                                  "inputs":  [
+                                                                 {
+                                                                     "parameters":  {
+                                                                                        "p_file_name":  {
+                                                                                                            "type":  "Expression",
+                                                                                                            "value":  "@item().file_name"
+                                                                                                        }
+                                                                                    },
+                                                                     "referenceName":  "DS_Source",
+                                                                     "type":  "DatasetReference"
+                                                                 }
+                                                             ],
+                                                  "linkedServiceName":  null,
+                                                  "logSettings":  null,
+                                                  "logStorageSettings":  null,
+                                                  "name":  "CPY_File",
+                                                  "onInactiveMarkAs":  null,
+                                                  "outputs":  [
+                                                                  {
+                                                                      "parameters":  {
+                                                                                         "p_file":  "@item().file_name",
+                                                                                         "p_folder":  "@item().folder_name"
+                                                                                     },
+                                                                      "referenceName":  "DS_Sink",
+                                                                      "type":  "DatasetReference"
+                                                                  }
+                                                              ],
+                                                  "parallelCopies":  null,
+                                                  "policy":  {
+                                                                 "additionalProperties":  null,
+                                                                 "retry":  0,
+                                                                 "retryIntervalInSeconds":  30,
+                                                                 "secureInput":  false,
+                                                                 "secureOutput":  false,
+                                                                 "timeout":  "0.12:00:00"
+                                                             },
+                                                  "preserve":  null,
+                                                  "preserveRules":  null,
+                                                  "redirectIncompatibleRowSettings":  null,
+                                                  "sink":  {
+                                                               "additionalProperties":  null,
+                                                               "disableMetricsCollection":  null,
+                                                               "formatSettings":  {
+                                                                                      "additionalProperties":  null,
+                                                                                      "fileExtension":  ".txt",
+                                                                                      "fileNamePrefix":  null,
+                                                                                      "maxRowsPerFile":  null,
+                                                                                      "quoteAllText":  true,
+                                                                                      "type":  "DelimitedTextWriteSettings"
+                                                                                  },
+                                                               "maxConcurrentConnections":  null,
+                                                               "sinkRetryCount":  null,
+                                                               "sinkRetryWait":  null,
+                                                               "storeSettings":  {
+                                                                                     "additionalProperties":  null,
+                                                                                     "blockSizeInMb":  null,
+                                                                                     "copyBehavior":  null,
+                                                                                     "disableMetricsCollection":  null,
+                                                                                     "maxConcurrentConnections":  null,
+                                                                                     "metadata":  null,
+                                                                                     "type":  "AzureBlobStorageWriteSettings"
+                                                                                 },
+                                                               "type":  "DelimitedTextSink",
+                                                               "writeBatchSize":  null,
+                                                               "writeBatchTimeout":  null
+                                                           },
+                                                  "skipErrorFile":  null,
+                                                  "source":  {
+                                                                 "additionalColumns":  null,
+                                                                 "additionalProperties":  null,
+                                                                 "disableMetricsCollection":  null,
+                                                                 "formatSettings":  {
+                                                                                        "additionalProperties":  null,
+                                                                                        "compressionProperties":  null,
+                                                                                        "skipLineCount":  null,
+                                                                                        "type":  "DelimitedTextReadSettings"
+                                                                                    },
+                                                                 "maxConcurrentConnections":  null,
+                                                                 "sourceRetryCount":  null,
+                                                                 "sourceRetryWait":  null,
+                                                                 "storeSettings":  {
+                                                                                       "additionalProperties":  null,
+                                                                                       "deleteFilesAfterCompletion":  null,
+                                                                                       "disableMetricsCollection":  null,
+                                                                                       "enablePartitionDiscovery":  false,
+                                                                                       "fileListPath":  null,
+                                                                                       "maxConcurrentConnections":  null,
+                                                                                       "modifiedDatetimeEnd":  null,
+                                                                                       "modifiedDatetimeStart":  null,
+                                                                                       "partitionRootPath":  null,
+                                                                                       "prefix":  null,
+                                                                                       "recursive":  true,
+                                                                                       "type":  "AzureBlobStorageReadSettings",
+                                                                                       "wildcardFileName":  null,
+                                                                                       "wildcardFolderPath":  null
+                                                                                   },
+                                                                 "type":  "DelimitedTextSource"
+                                                             },
+                                                  "stagingSettings":  null,
+                                                  "state":  null,
+                                                  "translator":  {
+                                                                     "type":  "TabularTranslator",
+                                                                     "typeConversion":  true,
+                                                                     "typeConversionSettings":  {
+                                                                                                    "allowDataTruncation":  true,
+                                                                                                    "treatBooleanAsNumber":  false
+                                                                                                }
+                                                                 },
+                                                  "type":  "Copy",
+                                                  "userProperties":  [
+
+                                                                     ],
+                                                  "validateDataConsistency":  null
+                                              }
+                                          ],
+                           "additionalProperties":  null,
+                           "batchCount":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "LKP_File_Config",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  null,
+                           "isSequential":  null,
+                           "items":  {
+                                         "type":  "Expression",
+                                         "value":  "@activity(\u0027LKP_File_Config\u0027).output.value"
+                                     },
+                           "name":  "ForEach1",
+                           "onInactiveMarkAs":  null,
+                           "state":  null,
+                           "type":  "ForEach",
+                           "userProperties":  [
+
+                                              ]
+                       }
+                   ],
+    "additionalProperties":  null,
+    "annotations":  [
+
+                    ],
+    "concurrency":  null,
+    "description":  null,
+    "etag":  "dd04526e-0000-0100-0000-6ac5dc9b0000",
+    "folder":  null,
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/pipelines/PL_copy_param",
+    "name":  "PL_copy_param",
+    "parameters":  {
+                       "p_file_name":  {
+                                           "defaultValue":  null,
+                                           "type":  "string"
+                                       },
+                       "p_folder_name":  {
+                                             "defaultValue":  null,
+                                             "type":  "string"
+                                         }
+                   },
+    "policy":  {
+                   "elapsedTimeMetric":  {
+                                             "duration":  null
+                                         }
+               },
+    "resourceGroup":  "data_test",
+    "runDimensions":  null,
+    "type":  "Microsoft.DataFactory/factories/pipelines",
+    "variables":  null
+}

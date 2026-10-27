@@ -1,0 +1,32 @@
+﻿{
+    "etag":  "c8044db5-0000-0100-0000-6ac24ba10000",
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/linkedservices/LS_BlobStorage",
+    "name":  "LS_BlobStorage",
+    "properties":  {
+                       "accountKey":  null,
+                       "accountKind":  null,
+                       "additionalProperties":  null,
+                       "annotations":  [
+
+                                       ],
+                       "authenticationType":  null,
+                       "azureCloudType":  null,
+                       "connectVia":  null,
+                       "connectionString":  "DefaultEndpointsProtocol=https;AccountName=demoteststorege65;EndpointSuffix=core.windows.net;",
+                       "containerUri":  null,
+                       "credential":  null,
+                       "description":  null,
+                       "encryptedCredential":  "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQEUwOUUwNEJFLTE4MzMtNDJGRC1BRjg4LTVCOUVEOEUzRjJFMl8wZTMzNzRkOS04NjA0LTQ4YTItYjVhOS05YzY1YmJjMDc2YTIiDQp9",
+                       "parameters":  null,
+                       "sasToken":  null,
+                       "sasUri":  null,
+                       "serviceEndpoint":  null,
+                       "servicePrincipalId":  null,
+                       "servicePrincipalKey":  null,
+                       "tenant":  null,
+                       "type":  "AzureBlobStorage",
+                       "version":  null
+                   },
+    "resourceGroup":  "data_test",
+    "type":  "Microsoft.DataFactory/factories/linkedservices"
+}

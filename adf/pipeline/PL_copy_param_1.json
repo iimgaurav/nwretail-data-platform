@@ -1,0 +1,979 @@
+﻿{
+    "activities":  [
+                       {
+                           "additionalProperties":  null,
+                           "dataset":  {
+                                           "parameters":  {
+
+                                                          },
+                                           "referenceName":  "DS_Config_sql",
+                                           "type":  "DatasetReference"
+                                       },
+                           "dependsOn":  [
+
+                                         ],
+                           "description":  null,
+                           "firstRowOnly":  false,
+                           "linkedServiceName":  null,
+                           "name":  "LK_Config",
+                           "onInactiveMarkAs":  null,
+                           "policy":  {
+                                          "additionalProperties":  null,
+                                          "retry":  2,
+                                          "retryIntervalInSeconds":  60,
+                                          "secureInput":  null,
+                                          "secureOutput":  null,
+                                          "timeout":  "0.12:00:00"
+                                      },
+                           "source":  {
+                                          "additionalColumns":  null,
+                                          "additionalProperties":  null,
+                                          "disableMetricsCollection":  null,
+                                          "isolationLevel":  null,
+                                          "maxConcurrentConnections":  null,
+                                          "partitionOption":  "None",
+                                          "partitionSettings":  null,
+                                          "produceAdditionalTypes":  null,
+                                          "queryTimeout":  "02:00:00",
+                                          "sourceRetryCount":  null,
+                                          "sourceRetryWait":  null,
+                                          "sqlReaderQuery":  "SELECT * FROM dbo.ADF_Pipeline_Config WHERE IsActive = 1",
+                                          "sqlReaderStoredProcedureName":  null,
+                                          "storedProcedureParameters":  null,
+                                          "type":  "AzureSqlSource"
+                                      },
+                           "state":  null,
+                           "type":  "Lookup",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "additionalProperties":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "LK_Config",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  null,
+                           "expression":  {
+                                              "type":  "Expression",
+                                              "value":  "@equals(length(activity(\u0027LK_Config\u0027).output.value), 0)"
+                                          },
+                           "ifFalseActivities":  null,
+                           "ifTrueActivities":  [
+                                                    {
+                                                        "additionalProperties":  null,
+                                                        "dataset":  {
+                                                                        "parameters":  {
+
+                                                                                       },
+                                                                        "referenceName":  "DS_Config_sql",
+                                                                        "type":  "DatasetReference"
+                                                                    },
+                                                        "dependsOn":  [
+
+                                                                      ],
+                                                        "description":  null,
+                                                        "firstRowOnly":  true,
+                                                        "linkedServiceName":  null,
+                                                        "name":  "SP_Log_NoConfig",
+                                                        "onInactiveMarkAs":  null,
+                                                        "policy":  {
+                                                                       "additionalProperties":  null,
+                                                                       "retry":  0,
+                                                                       "retryIntervalInSeconds":  30,
+                                                                       "secureInput":  false,
+                                                                       "secureOutput":  false,
+                                                                       "timeout":  "0.00:10:00"
+                                                                   },
+                                                        "source":  {
+                                                                       "additionalColumns":  null,
+                                                                       "additionalProperties":  null,
+                                                                       "disableMetricsCollection":  null,
+                                                                       "isolationLevel":  null,
+                                                                       "maxConcurrentConnections":  null,
+                                                                       "partitionOption":  "None",
+                                                                       "partitionSettings":  null,
+                                                                       "produceAdditionalTypes":  null,
+                                                                       "queryTimeout":  "00:10:00",
+                                                                       "sourceRetryCount":  null,
+                                                                       "sourceRetryWait":  null,
+                                                                       "sqlReaderQuery":  {
+                                                                                              "type":  "Expression",
+                                                                                              "value":  "@concat(\u0027EXEC [dbo].[sp_ADF_Audit_Log] @ConfigId=0, @Status=\u0027\u0027NO_ACTIVE_CONFIG\u0027\u0027, @ErrorMsg=\u0027\u0027No active rows in ADF_Pipeline_Config\u0027\u0027; SELECT 1 AS Logged\u0027)"
+                                                                                          },
+                                                                       "sqlReaderStoredProcedureName":  null,
+                                                                       "storedProcedureParameters":  null,
+                                                                       "type":  "AzureSqlSource"
+                                                                   },
+                                                        "state":  null,
+                                                        "type":  "Lookup",
+                                                        "userProperties":  [
+
+                                                                           ]
+                                                    }
+                                                ],
+                           "name":  "IF_Config_Empty",
+                           "onInactiveMarkAs":  null,
+                           "state":  null,
+                           "type":  "IfCondition",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "activities":  [
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dataset":  {
+                                                                  "parameters":  {
+                                                                                     "pContainer":  {
+                                                                                                        "type":  "Expression",
+                                                                                                        "value":  "@item().SourceContainer"
+                                                                                                    },
+                                                                                     "pFolder":  {
+                                                                                                     "type":  "Expression",
+                                                                                                     "value":  "@item().SourceFolder"
+                                                                                                 }
+                                                                                 },
+                                                                  "referenceName":  "DS_Blob_Input",
+                                                                  "type":  "DatasetReference"
+                                                              },
+                                                  "dependsOn":  [
+
+                                                                ],
+                                                  "description":  null,
+                                                  "fieldList":  [
+                                                                    "exists",
+                                                                    "childItems"
+                                                                ],
+                                                  "formatSettings":  {
+                                                                         "additionalProperties":  null,
+                                                                         "compressionProperties":  null,
+                                                                         "skipLineCount":  null,
+                                                                         "type":  "DelimitedTextReadSettings"
+                                                                     },
+                                                  "linkedServiceName":  null,
+                                                  "name":  "GM_CheckSourceFiles",
+                                                  "onInactiveMarkAs":  null,
+                                                  "policy":  {
+                                                                 "additionalProperties":  null,
+                                                                 "retry":  2,
+                                                                 "retryIntervalInSeconds":  30,
+                                                                 "secureInput":  null,
+                                                                 "secureOutput":  null,
+                                                                 "timeout":  "0.00:10:00"
+                                                             },
+                                                  "state":  null,
+                                                  "storeSettings":  {
+                                                                        "additionalProperties":  null,
+                                                                        "deleteFilesAfterCompletion":  null,
+                                                                        "disableMetricsCollection":  null,
+                                                                        "enablePartitionDiscovery":  false,
+                                                                        "fileListPath":  null,
+                                                                        "maxConcurrentConnections":  null,
+                                                                        "modifiedDatetimeEnd":  null,
+                                                                        "modifiedDatetimeStart":  null,
+                                                                        "partitionRootPath":  null,
+                                                                        "prefix":  null,
+                                                                        "recursive":  true,
+                                                                        "type":  "AzureBlobStorageReadSettings",
+                                                                        "wildcardFileName":  null,
+                                                                        "wildcardFolderPath":  null
+                                                                    },
+                                                  "type":  "GetMetadata",
+                                                  "userProperties":  [
+
+                                                                     ]
+                                              },
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "condition":  {
+                                                                    "type":  "Expression",
+                                                                    "value":  "@and(equals(item().type, \u0027File\u0027), endsWith(toLower(item().name), \u0027.csv\u0027))"
+                                                                },
+                                                  "dependsOn":  [
+                                                                    {
+                                                                        "activity":  "GM_CheckSourceFiles",
+                                                                        "additionalProperties":  null,
+                                                                        "dependencyConditions":  [
+                                                                                                     "Succeeded"
+                                                                                                 ]
+                                                                    }
+                                                                ],
+                                                  "description":  null,
+                                                  "items":  {
+                                                                "type":  "Expression",
+                                                                "value":  "@if(equals(activity(\u0027GM_CheckSourceFiles\u0027).output.exists, true), activity(\u0027GM_CheckSourceFiles\u0027).output.childItems, json(\u0027[]\u0027))"
+                                                            },
+                                                  "name":  "FL_OnlyCsv",
+                                                  "onInactiveMarkAs":  null,
+                                                  "state":  null,
+                                                  "type":  "Filter",
+                                                  "userProperties":  [
+
+                                                                     ]
+                                              },
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dependsOn":  [
+                                                                    {
+                                                                        "activity":  "FL_OnlyCsv",
+                                                                        "additionalProperties":  null,
+                                                                        "dependencyConditions":  [
+                                                                                                     "Succeeded"
+                                                                                                 ]
+                                                                    }
+                                                                ],
+                                                  "description":  null,
+                                                  "expression":  {
+                                                                     "type":  "Expression",
+                                                                     "value":  "@greater(length(activity(\u0027FL_OnlyCsv\u0027).output.Value), 0)"
+                                                                 },
+                                                  "ifFalseActivities":  [
+                                                                            {
+                                                                                "additionalProperties":  null,
+                                                                                "dataset":  {
+                                                                                                "parameters":  {
+
+                                                                                                               },
+                                                                                                "referenceName":  "DS_Config_sql",
+                                                                                                "type":  "DatasetReference"
+                                                                                            },
+                                                                                "dependsOn":  [
+
+                                                                                              ],
+                                                                                "description":  null,
+                                                                                "firstRowOnly":  true,
+                                                                                "linkedServiceName":  null,
+                                                                                "name":  "SP_Log_NoFiles",
+                                                                                "onInactiveMarkAs":  null,
+                                                                                "policy":  {
+                                                                                               "additionalProperties":  null,
+                                                                                               "retry":  0,
+                                                                                               "retryIntervalInSeconds":  30,
+                                                                                               "secureInput":  false,
+                                                                                               "secureOutput":  false,
+                                                                                               "timeout":  "0.00:10:00"
+                                                                                           },
+                                                                                "source":  {
+                                                                                               "additionalColumns":  null,
+                                                                                               "additionalProperties":  null,
+                                                                                               "disableMetricsCollection":  null,
+                                                                                               "isolationLevel":  null,
+                                                                                               "maxConcurrentConnections":  null,
+                                                                                               "partitionOption":  "None",
+                                                                                               "partitionSettings":  null,
+                                                                                               "produceAdditionalTypes":  null,
+                                                                                               "queryTimeout":  "00:10:00",
+                                                                                               "sourceRetryCount":  null,
+                                                                                               "sourceRetryWait":  null,
+                                                                                               "sqlReaderQuery":  {
+                                                                                                                      "type":  "Expression",
+                                                                                                                      "value":  "@concat(\u0027EXEC [dbo].[sp_ADF_Audit_Log] @ConfigId=\u0027, string(item().ConfigID), \u0027, @Status=\u0027\u0027SKIPPED_NO_FILES\u0027\u0027, @ErrorMsg=\u0027\u0027\u0027, replace(string(concat(\u0027No .csv files found in \u0027, item().SourceContainer, \u0027/\u0027, item().SourceFolder)), \u0027\u0027\u0027\u0027, \u0027\u0027\u0027\u0027\u0027\u0027), \u0027\u0027\u0027; SELECT 1 AS Logged\u0027)"
+                                                                                                                  },
+                                                                                               "sqlReaderStoredProcedureName":  null,
+                                                                                               "storedProcedureParameters":  null,
+                                                                                               "type":  "AzureSqlSource"
+                                                                                           },
+                                                                                "state":  null,
+                                                                                "type":  "Lookup",
+                                                                                "userProperties":  [
+
+                                                                                                   ]
+                                                                            }
+                                                                        ],
+                                                  "ifTrueActivities":  [
+                                                                           {
+                                                                               "additionalProperties":  null,
+                                                                               "cases":  [
+                                                                                             {
+                                                                                                 "activities":  [
+                                                                                                                    {
+                                                                                                                        "additionalProperties":  null,
+                                                                                                                        "dataIntegrationUnits":  8,
+                                                                                                                        "dependsOn":  [
+
+                                                                                                                                      ],
+                                                                                                                        "description":  null,
+                                                                                                                        "enableSkipIncompatibleRow":  null,
+                                                                                                                        "enableStaging":  false,
+                                                                                                                        "inputs":  [
+                                                                                                                                       {
+                                                                                                                                           "parameters":  {
+                                                                                                                                                              "pContainer":  {
+                                                                                                                                                                                 "type":  "Expression",
+                                                                                                                                                                                 "value":  "@item().SourceContainer"
+                                                                                                                                                                             },
+                                                                                                                                                              "pFolder":  {
+                                                                                                                                                                              "type":  "Expression",
+                                                                                                                                                                              "value":  "@item().SourceFolder"
+                                                                                                                                                                          }
+                                                                                                                                                          },
+                                                                                                                                           "referenceName":  "DS_Blob_Input",
+                                                                                                                                           "type":  "DatasetReference"
+                                                                                                                                       }
+                                                                                                                                   ],
+                                                                                                                        "linkedServiceName":  null,
+                                                                                                                        "logSettings":  null,
+                                                                                                                        "logStorageSettings":  null,
+                                                                                                                        "name":  "CP_To_Parquet",
+                                                                                                                        "onInactiveMarkAs":  null,
+                                                                                                                        "outputs":  [
+                                                                                                                                        {
+                                                                                                                                            "parameters":  {
+                                                                                                                                                               "pContainer":  {
+                                                                                                                                                                                  "type":  "Expression",
+                                                                                                                                                                                  "value":  "@item().TargetContainer"
+                                                                                                                                                                              },
+                                                                                                                                                               "pFolder":  {
+                                                                                                                                                                               "type":  "Expression",
+                                                                                                                                                                               "value":  "@concat(item().TargetFolder, \u0027/yyyymmdd=\u0027, formatDateTime(utcNow(), \u0027yyyyMMdd\u0027))"
+                                                                                                                                                                           }
+                                                                                                                                                           },
+                                                                                                                                            "referenceName":  "DS_Blob_Parquet_Output",
+                                                                                                                                            "type":  "DatasetReference"
+                                                                                                                                        }
+                                                                                                                                    ],
+                                                                                                                        "parallelCopies":  8,
+                                                                                                                        "policy":  {
+                                                                                                                                       "additionalProperties":  null,
+                                                                                                                                       "retry":  3,
+                                                                                                                                       "retryIntervalInSeconds":  120,
+                                                                                                                                       "secureInput":  null,
+                                                                                                                                       "secureOutput":  null,
+                                                                                                                                       "timeout":  "1.00:00:00"
+                                                                                                                                   },
+                                                                                                                        "preserve":  null,
+                                                                                                                        "preserveRules":  null,
+                                                                                                                        "redirectIncompatibleRowSettings":  null,
+                                                                                                                        "sink":  {
+                                                                                                                                     "additionalProperties":  null,
+                                                                                                                                     "disableMetricsCollection":  null,
+                                                                                                                                     "formatSettings":  {
+                                                                                                                                                            "additionalProperties":  null,
+                                                                                                                                                            "fileNamePrefix":  null,
+                                                                                                                                                            "maxRowsPerFile":  null,
+                                                                                                                                                            "type":  "ParquetWriteSettings"
+                                                                                                                                                        },
+                                                                                                                                     "maxConcurrentConnections":  null,
+                                                                                                                                     "sinkRetryCount":  null,
+                                                                                                                                     "sinkRetryWait":  null,
+                                                                                                                                     "storeSettings":  {
+                                                                                                                                                           "additionalProperties":  null,
+                                                                                                                                                           "blockSizeInMb":  null,
+                                                                                                                                                           "copyBehavior":  null,
+                                                                                                                                                           "disableMetricsCollection":  null,
+                                                                                                                                                           "maxConcurrentConnections":  null,
+                                                                                                                                                           "metadata":  null,
+                                                                                                                                                           "type":  "AzureBlobStorageWriteSettings"
+                                                                                                                                                       },
+                                                                                                                                     "type":  "ParquetSink",
+                                                                                                                                     "writeBatchSize":  null,
+                                                                                                                                     "writeBatchTimeout":  null
+                                                                                                                                 },
+                                                                                                                        "skipErrorFile":  null,
+                                                                                                                        "source":  {
+                                                                                                                                       "additionalColumns":  null,
+                                                                                                                                       "additionalProperties":  null,
+                                                                                                                                       "disableMetricsCollection":  null,
+                                                                                                                                       "formatSettings":  {
+                                                                                                                                                              "additionalProperties":  null,
+                                                                                                                                                              "compressionProperties":  null,
+                                                                                                                                                              "skipLineCount":  null,
+                                                                                                                                                              "type":  "DelimitedTextReadSettings"
+                                                                                                                                                          },
+                                                                                                                                       "maxConcurrentConnections":  null,
+                                                                                                                                       "sourceRetryCount":  null,
+                                                                                                                                       "sourceRetryWait":  null,
+                                                                                                                                       "storeSettings":  {
+                                                                                                                                                             "additionalProperties":  null,
+                                                                                                                                                             "deleteFilesAfterCompletion":  null,
+                                                                                                                                                             "disableMetricsCollection":  null,
+                                                                                                                                                             "enablePartitionDiscovery":  false,
+                                                                                                                                                             "fileListPath":  null,
+                                                                                                                                                             "maxConcurrentConnections":  null,
+                                                                                                                                                             "modifiedDatetimeEnd":  null,
+                                                                                                                                                             "modifiedDatetimeStart":  null,
+                                                                                                                                                             "partitionRootPath":  null,
+                                                                                                                                                             "prefix":  null,
+                                                                                                                                                             "recursive":  true,
+                                                                                                                                                             "type":  "AzureBlobStorageReadSettings",
+                                                                                                                                                             "wildcardFileName":  "*.csv",
+                                                                                                                                                             "wildcardFolderPath":  {
+                                                                                                                                                                                        "type":  "Expression",
+                                                                                                                                                                                        "value":  "@item().SourceFolder"
+                                                                                                                                                                                    }
+                                                                                                                                                         },
+                                                                                                                                       "type":  "DelimitedTextSource"
+                                                                                                                                   },
+                                                                                                                        "stagingSettings":  null,
+                                                                                                                        "state":  null,
+                                                                                                                        "translator":  null,
+                                                                                                                        "type":  "Copy",
+                                                                                                                        "userProperties":  [
+
+                                                                                                                                           ],
+                                                                                                                        "validateDataConsistency":  null
+                                                                                                                    },
+                                                                                                                    {
+                                                                                                                        "additionalProperties":  null,
+                                                                                                                        "dataset":  {
+                                                                                                                                        "parameters":  {
+
+                                                                                                                                                       },
+                                                                                                                                        "referenceName":  "DS_Config_sql",
+                                                                                                                                        "type":  "DatasetReference"
+                                                                                                                                    },
+                                                                                                                        "dependsOn":  [
+                                                                                                                                          {
+                                                                                                                                              "activity":  "CP_To_Parquet",
+                                                                                                                                              "additionalProperties":  null,
+                                                                                                                                              "dependencyConditions":  [
+                                                                                                                                                                           "Succeeded"
+                                                                                                                                                                       ]
+                                                                                                                                          }
+                                                                                                                                      ],
+                                                                                                                        "description":  null,
+                                                                                                                        "firstRowOnly":  true,
+                                                                                                                        "linkedServiceName":  null,
+                                                                                                                        "name":  "SP_Log_Success_Parquet",
+                                                                                                                        "onInactiveMarkAs":  null,
+                                                                                                                        "policy":  {
+                                                                                                                                       "additionalProperties":  null,
+                                                                                                                                       "retry":  0,
+                                                                                                                                       "retryIntervalInSeconds":  30,
+                                                                                                                                       "secureInput":  false,
+                                                                                                                                       "secureOutput":  false,
+                                                                                                                                       "timeout":  "0.00:10:00"
+                                                                                                                                   },
+                                                                                                                        "source":  {
+                                                                                                                                       "additionalColumns":  null,
+                                                                                                                                       "additionalProperties":  null,
+                                                                                                                                       "disableMetricsCollection":  null,
+                                                                                                                                       "isolationLevel":  null,
+                                                                                                                                       "maxConcurrentConnections":  null,
+                                                                                                                                       "partitionOption":  "None",
+                                                                                                                                       "partitionSettings":  null,
+                                                                                                                                       "produceAdditionalTypes":  null,
+                                                                                                                                       "queryTimeout":  "00:10:00",
+                                                                                                                                       "sourceRetryCount":  null,
+                                                                                                                                       "sourceRetryWait":  null,
+                                                                                                                                       "sqlReaderQuery":  {
+                                                                                                                                                              "type":  "Expression",
+                                                                                                                                                              "value":  "@concat(\u0027EXEC [dbo].[sp_ADF_Audit_Log] @ConfigId=\u0027, string(item().ConfigID), \u0027, @Status=\u0027\u0027SUCCESS\u0027\u0027, @RowsRead=\u0027\u0027\u0027, replace(string(string(activity(\u0027CP_To_Parquet\u0027).output.rowsRead)), \u0027\u0027\u0027\u0027, \u0027\u0027\u0027\u0027\u0027\u0027), \u0027\u0027\u0027, @RowsWritten=\u0027\u0027\u0027, replace(string(string(activity(\u0027CP_To_Parquet\u0027).output.rowsCopied)), \u0027\u0027\u0027\u0027, \u0027\u0027\u0027\u0027\u0027\u0027), \u0027\u0027\u0027; SELECT 1 AS Logged\u0027)"
+                                                                                                                                                          },
+                                                                                                                                       "sqlReaderStoredProcedureName":  null,
+                                                                                                                                       "storedProcedureParameters":  null,
+                                                                                                                                       "type":  "AzureSqlSource"
+                                                                                                                                   },
+                                                                                                                        "state":  null,
+                                                                                                                        "type":  "Lookup",
+                                                                                                                        "userProperties":  [
+
+                                                                                                                                           ]
+                                                                                                                    }
+                                                                                                                ],
+                                                                                                 "value":  "PARQUET"
+                                                                                             },
+                                                                                             {
+                                                                                                 "activities":  [
+                                                                                                                    {
+                                                                                                                        "additionalProperties":  null,
+                                                                                                                        "dataIntegrationUnits":  null,
+                                                                                                                        "dependsOn":  [
+
+                                                                                                                                      ],
+                                                                                                                        "description":  null,
+                                                                                                                        "enableSkipIncompatibleRow":  null,
+                                                                                                                        "enableStaging":  false,
+                                                                                                                        "inputs":  [
+                                                                                                                                       {
+                                                                                                                                           "parameters":  {
+                                                                                                                                                              "pContainer":  {
+                                                                                                                                                                                 "type":  "Expression",
+                                                                                                                                                                                 "value":  "@item().SourceContainer"
+                                                                                                                                                                             },
+                                                                                                                                                              "pFolder":  {
+                                                                                                                                                                              "type":  "Expression",
+                                                                                                                                                                              "value":  "@item().SourceFolder"
+                                                                                                                                                                          }
+                                                                                                                                                          },
+                                                                                                                                           "referenceName":  "DS_Blob_Input",
+                                                                                                                                           "type":  "DatasetReference"
+                                                                                                                                       }
+                                                                                                                                   ],
+                                                                                                                        "linkedServiceName":  null,
+                                                                                                                        "logSettings":  null,
+                                                                                                                        "logStorageSettings":  null,
+                                                                                                                        "name":  "CP_To_Csv",
+                                                                                                                        "onInactiveMarkAs":  null,
+                                                                                                                        "outputs":  [
+                                                                                                                                        {
+                                                                                                                                            "parameters":  {
+                                                                                                                                                               "pContainer":  {
+                                                                                                                                                                                  "type":  "Expression",
+                                                                                                                                                                                  "value":  "@item().TargetContainer"
+                                                                                                                                                                              },
+                                                                                                                                                               "pFolder":  {
+                                                                                                                                                                               "type":  "Expression",
+                                                                                                                                                                               "value":  "@item().TargetFolder"
+                                                                                                                                                                           }
+                                                                                                                                                           },
+                                                                                                                                            "referenceName":  "DS_Blob_Output",
+                                                                                                                                            "type":  "DatasetReference"
+                                                                                                                                        }
+                                                                                                                                    ],
+                                                                                                                        "parallelCopies":  8,
+                                                                                                                        "policy":  {
+                                                                                                                                       "additionalProperties":  null,
+                                                                                                                                       "retry":  3,
+                                                                                                                                       "retryIntervalInSeconds":  120,
+                                                                                                                                       "secureInput":  null,
+                                                                                                                                       "secureOutput":  null,
+                                                                                                                                       "timeout":  "1.00:00:00"
+                                                                                                                                   },
+                                                                                                                        "preserve":  null,
+                                                                                                                        "preserveRules":  null,
+                                                                                                                        "redirectIncompatibleRowSettings":  null,
+                                                                                                                        "sink":  {
+                                                                                                                                     "additionalProperties":  null,
+                                                                                                                                     "disableMetricsCollection":  null,
+                                                                                                                                     "formatSettings":  {
+                                                                                                                                                            "additionalProperties":  null,
+                                                                                                                                                            "fileExtension":  ".csv",
+                                                                                                                                                            "fileNamePrefix":  null,
+                                                                                                                                                            "maxRowsPerFile":  null,
+                                                                                                                                                            "quoteAllText":  true,
+                                                                                                                                                            "type":  "DelimitedTextWriteSettings"
+                                                                                                                                                        },
+                                                                                                                                     "maxConcurrentConnections":  null,
+                                                                                                                                     "sinkRetryCount":  null,
+                                                                                                                                     "sinkRetryWait":  null,
+                                                                                                                                     "storeSettings":  {
+                                                                                                                                                           "additionalProperties":  null,
+                                                                                                                                                           "blockSizeInMb":  null,
+                                                                                                                                                           "copyBehavior":  null,
+                                                                                                                                                           "disableMetricsCollection":  null,
+                                                                                                                                                           "maxConcurrentConnections":  null,
+                                                                                                                                                           "metadata":  null,
+                                                                                                                                                           "type":  "AzureBlobStorageWriteSettings"
+                                                                                                                                                       },
+                                                                                                                                     "type":  "DelimitedTextSink",
+                                                                                                                                     "writeBatchSize":  null,
+                                                                                                                                     "writeBatchTimeout":  null
+                                                                                                                                 },
+                                                                                                                        "skipErrorFile":  null,
+                                                                                                                        "source":  {
+                                                                                                                                       "additionalColumns":  null,
+                                                                                                                                       "additionalProperties":  null,
+                                                                                                                                       "disableMetricsCollection":  null,
+                                                                                                                                       "formatSettings":  {
+                                                                                                                                                              "additionalProperties":  null,
+                                                                                                                                                              "compressionProperties":  null,
+                                                                                                                                                              "skipLineCount":  null,
+                                                                                                                                                              "type":  "DelimitedTextReadSettings"
+                                                                                                                                                          },
+                                                                                                                                       "maxConcurrentConnections":  null,
+                                                                                                                                       "sourceRetryCount":  null,
+                                                                                                                                       "sourceRetryWait":  null,
+                                                                                                                                       "storeSettings":  {
+                                                                                                                                                             "additionalProperties":  null,
+                                                                                                                                                             "deleteFilesAfterCompletion":  null,
+                                                                                                                                                             "disableMetricsCollection":  null,
+                                                                                                                                                             "enablePartitionDiscovery":  false,
+                                                                                                                                                             "fileListPath":  null,
+                                                                                                                                                             "maxConcurrentConnections":  null,
+                                                                                                                                                             "modifiedDatetimeEnd":  null,
+                                                                                                                                                             "modifiedDatetimeStart":  null,
+                                                                                                                                                             "partitionRootPath":  null,
+                                                                                                                                                             "prefix":  null,
+                                                                                                                                                             "recursive":  true,
+                                                                                                                                                             "type":  "AzureBlobStorageReadSettings",
+                                                                                                                                                             "wildcardFileName":  "*.csv",
+                                                                                                                                                             "wildcardFolderPath":  {
+                                                                                                                                                                                        "type":  "Expression",
+                                                                                                                                                                                        "value":  "@item().SourceFolder"
+                                                                                                                                                                                    }
+                                                                                                                                                         },
+                                                                                                                                       "type":  "DelimitedTextSource"
+                                                                                                                                   },
+                                                                                                                        "stagingSettings":  null,
+                                                                                                                        "state":  null,
+                                                                                                                        "translator":  {
+                                                                                                                                           "type":  "TabularTranslator",
+                                                                                                                                           "typeConversion":  true,
+                                                                                                                                           "typeConversionSettings":  {
+                                                                                                                                                                          "allowDataTruncation":  false,
+                                                                                                                                                                          "treatBooleanAsNumber":  false
+                                                                                                                                                                      }
+                                                                                                                                       },
+                                                                                                                        "type":  "Copy",
+                                                                                                                        "userProperties":  [
+
+                                                                                                                                           ],
+                                                                                                                        "validateDataConsistency":  true
+                                                                                                                    },
+                                                                                                                    {
+                                                                                                                        "additionalProperties":  null,
+                                                                                                                        "dataset":  {
+                                                                                                                                        "parameters":  {
+
+                                                                                                                                                       },
+                                                                                                                                        "referenceName":  "DS_Config_sql",
+                                                                                                                                        "type":  "DatasetReference"
+                                                                                                                                    },
+                                                                                                                        "dependsOn":  [
+                                                                                                                                          {
+                                                                                                                                              "activity":  "CP_To_Csv",
+                                                                                                                                              "additionalProperties":  null,
+                                                                                                                                              "dependencyConditions":  [
+                                                                                                                                                                           "Succeeded"
+                                                                                                                                                                       ]
+                                                                                                                                          }
+                                                                                                                                      ],
+                                                                                                                        "description":  null,
+                                                                                                                        "firstRowOnly":  true,
+                                                                                                                        "linkedServiceName":  null,
+                                                                                                                        "name":  "SP_Log_Success_Csv",
+                                                                                                                        "onInactiveMarkAs":  null,
+                                                                                                                        "policy":  {
+                                                                                                                                       "additionalProperties":  null,
+                                                                                                                                       "retry":  0,
+                                                                                                                                       "retryIntervalInSeconds":  30,
+                                                                                                                                       "secureInput":  false,
+                                                                                                                                       "secureOutput":  false,
+                                                                                                                                       "timeout":  "0.00:10:00"
+                                                                                                                                   },
+                                                                                                                        "source":  {
+                                                                                                                                       "additionalColumns":  null,
+                                                                                                                                       "additionalProperties":  null,
+                                                                                                                                       "disableMetricsCollection":  null,
+                                                                                                                                       "isolationLevel":  null,
+                                                                                                                                       "maxConcurrentConnections":  null,
+                                                                                                                                       "partitionOption":  "None",
+                                                                                                                                       "partitionSettings":  null,
+                                                                                                                                       "produceAdditionalTypes":  null,
+                                                                                                                                       "queryTimeout":  "00:10:00",
+                                                                                                                                       "sourceRetryCount":  null,
+                                                                                                                                       "sourceRetryWait":  null,
+                                                                                                                                       "sqlReaderQuery":  {
+                                                                                                                                                              "type":  "Expression",
+                                                                                                                                                              "value":  "@concat(\u0027EXEC [dbo].[sp_ADF_Audit_Log] @ConfigId=\u0027, string(item().ConfigID), \u0027, @Status=\u0027\u0027SUCCESS\u0027\u0027, @RowsRead=\u0027\u0027\u0027, replace(string(string(activity(\u0027CP_To_Csv\u0027).output.rowsRead)), \u0027\u0027\u0027\u0027, \u0027\u0027\u0027\u0027\u0027\u0027), \u0027\u0027\u0027, @RowsWritten=\u0027\u0027\u0027, replace(string(string(activity(\u0027CP_To_Csv\u0027).output.rowsCopied)), \u0027\u0027\u0027\u0027, \u0027\u0027\u0027\u0027\u0027\u0027), \u0027\u0027\u0027; SELECT 1 AS Logged\u0027)"
+                                                                                                                                                          },
+                                                                                                                                       "sqlReaderStoredProcedureName":  null,
+                                                                                                                                       "storedProcedureParameters":  null,
+                                                                                                                                       "type":  "AzureSqlSource"
+                                                                                                                                   },
+                                                                                                                        "state":  null,
+                                                                                                                        "type":  "Lookup",
+                                                                                                                        "userProperties":  [
+
+                                                                                                                                           ]
+                                                                                                                    }
+                                                                                                                ],
+                                                                                                 "value":  "CSV"
+                                                                                             }
+                                                                                         ],
+                                                                               "defaultActivities":  [
+                                                                                                         {
+                                                                                                             "additionalProperties":  null,
+                                                                                                             "dataset":  {
+                                                                                                                             "parameters":  {
+
+                                                                                                                                            },
+                                                                                                                             "referenceName":  "DS_Config_sql",
+                                                                                                                             "type":  "DatasetReference"
+                                                                                                                         },
+                                                                                                             "dependsOn":  [
+
+                                                                                                                           ],
+                                                                                                             "description":  null,
+                                                                                                             "firstRowOnly":  true,
+                                                                                                             "linkedServiceName":  null,
+                                                                                                             "name":  "SP_Log_UnknownFormat",
+                                                                                                             "onInactiveMarkAs":  null,
+                                                                                                             "policy":  {
+                                                                                                                            "additionalProperties":  null,
+                                                                                                                            "retry":  0,
+                                                                                                                            "retryIntervalInSeconds":  30,
+                                                                                                                            "secureInput":  false,
+                                                                                                                            "secureOutput":  false,
+                                                                                                                            "timeout":  "0.00:10:00"
+                                                                                                                        },
+                                                                                                             "source":  {
+                                                                                                                            "additionalColumns":  null,
+                                                                                                                            "additionalProperties":  null,
+                                                                                                                            "disableMetricsCollection":  null,
+                                                                                                                            "isolationLevel":  null,
+                                                                                                                            "maxConcurrentConnections":  null,
+                                                                                                                            "partitionOption":  "None",
+                                                                                                                            "partitionSettings":  null,
+                                                                                                                            "produceAdditionalTypes":  null,
+                                                                                                                            "queryTimeout":  "00:10:00",
+                                                                                                                            "sourceRetryCount":  null,
+                                                                                                                            "sourceRetryWait":  null,
+                                                                                                                            "sqlReaderQuery":  {
+                                                                                                                                                   "type":  "Expression",
+                                                                                                                                                   "value":  "@concat(\u0027EXEC [dbo].[sp_ADF_Audit_Log] @ConfigId=\u0027, string(item().ConfigID), \u0027, @Status=\u0027\u0027FAILED\u0027\u0027, @ErrorMsg=\u0027\u0027\u0027, replace(string(concat(\u0027Unknown TargetFormat in config: \u0027, item().TargetFormat)), \u0027\u0027\u0027\u0027, \u0027\u0027\u0027\u0027\u0027\u0027), \u0027\u0027\u0027; SELECT 1 AS Logged\u0027)"
+                                                                                                                                               },
+                                                                                                                            "sqlReaderStoredProcedureName":  null,
+                                                                                                                            "storedProcedureParameters":  null,
+                                                                                                                            "type":  "AzureSqlSource"
+                                                                                                                        },
+                                                                                                             "state":  null,
+                                                                                                             "type":  "Lookup",
+                                                                                                             "userProperties":  [
+
+                                                                                                                                ]
+                                                                                                         }
+                                                                                                     ],
+                                                                               "dependsOn":  [
+
+                                                                                             ],
+                                                                               "description":  null,
+                                                                               "name":  "SW_TargetFormat",
+                                                                               "on":  {
+                                                                                          "type":  "Expression",
+                                                                                          "value":  "@toUpper(item().TargetFormat)"
+                                                                                      },
+                                                                               "onInactiveMarkAs":  null,
+                                                                               "state":  null,
+                                                                               "type":  "Switch",
+                                                                               "userProperties":  [
+
+                                                                                                  ]
+                                                                           }
+                                                                       ],
+                                                  "name":  "IF_HasFiles",
+                                                  "onInactiveMarkAs":  null,
+                                                  "state":  null,
+                                                  "type":  "IfCondition",
+                                                  "userProperties":  [
+
+                                                                     ]
+                                              },
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dataset":  {
+                                                                  "parameters":  {
+
+                                                                                 },
+                                                                  "referenceName":  "DS_Config_sql",
+                                                                  "type":  "DatasetReference"
+                                                              },
+                                                  "dependsOn":  [
+                                                                    {
+                                                                        "activity":  "GM_CheckSourceFiles",
+                                                                        "additionalProperties":  null,
+                                                                        "dependencyConditions":  [
+                                                                                                     "Failed"
+                                                                                                 ]
+                                                                    }
+                                                                ],
+                                                  "description":  null,
+                                                  "firstRowOnly":  true,
+                                                  "linkedServiceName":  null,
+                                                  "name":  "SP_Log_Failed_Check",
+                                                  "onInactiveMarkAs":  null,
+                                                  "policy":  {
+                                                                 "additionalProperties":  null,
+                                                                 "retry":  0,
+                                                                 "retryIntervalInSeconds":  30,
+                                                                 "secureInput":  false,
+                                                                 "secureOutput":  false,
+                                                                 "timeout":  "0.00:10:00"
+                                                             },
+                                                  "source":  {
+                                                                 "additionalColumns":  null,
+                                                                 "additionalProperties":  null,
+                                                                 "disableMetricsCollection":  null,
+                                                                 "isolationLevel":  null,
+                                                                 "maxConcurrentConnections":  null,
+                                                                 "partitionOption":  "None",
+                                                                 "partitionSettings":  null,
+                                                                 "produceAdditionalTypes":  null,
+                                                                 "queryTimeout":  "00:10:00",
+                                                                 "sourceRetryCount":  null,
+                                                                 "sourceRetryWait":  null,
+                                                                 "sqlReaderQuery":  {
+                                                                                        "type":  "Expression",
+                                                                                        "value":  "@concat(\u0027EXEC [dbo].[sp_ADF_Audit_Log] @ConfigId=\u0027, string(item().ConfigID), \u0027, @Status=\u0027\u0027FAILED\u0027\u0027, @ErrorMsg=\u0027\u0027\u0027, replace(string(activity(\u0027GM_CheckSourceFiles\u0027).error.message), \u0027\u0027\u0027\u0027, \u0027\u0027\u0027\u0027\u0027\u0027), \u0027\u0027\u0027; SELECT 1 AS Logged\u0027)"
+                                                                                    },
+                                                                 "sqlReaderStoredProcedureName":  null,
+                                                                 "storedProcedureParameters":  null,
+                                                                 "type":  "AzureSqlSource"
+                                                             },
+                                                  "state":  null,
+                                                  "type":  "Lookup",
+                                                  "userProperties":  [
+
+                                                                     ]
+                                              },
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dataset":  {
+                                                                  "parameters":  {
+
+                                                                                 },
+                                                                  "referenceName":  "DS_Config_sql",
+                                                                  "type":  "DatasetReference"
+                                                              },
+                                                  "dependsOn":  [
+                                                                    {
+                                                                        "activity":  "FL_OnlyCsv",
+                                                                        "additionalProperties":  null,
+                                                                        "dependencyConditions":  [
+                                                                                                     "Failed"
+                                                                                                 ]
+                                                                    }
+                                                                ],
+                                                  "description":  null,
+                                                  "firstRowOnly":  true,
+                                                  "linkedServiceName":  null,
+                                                  "name":  "SP_Log_Failed_Filter",
+                                                  "onInactiveMarkAs":  null,
+                                                  "policy":  {
+                                                                 "additionalProperties":  null,
+                                                                 "retry":  0,
+                                                                 "retryIntervalInSeconds":  30,
+                                                                 "secureInput":  false,
+                                                                 "secureOutput":  false,
+                                                                 "timeout":  "0.00:10:00"
+                                                             },
+                                                  "source":  {
+                                                                 "additionalColumns":  null,
+                                                                 "additionalProperties":  null,
+                                                                 "disableMetricsCollection":  null,
+                                                                 "isolationLevel":  null,
+                                                                 "maxConcurrentConnections":  null,
+                                                                 "partitionOption":  "None",
+                                                                 "partitionSettings":  null,
+                                                                 "produceAdditionalTypes":  null,
+                                                                 "queryTimeout":  "00:10:00",
+                                                                 "sourceRetryCount":  null,
+                                                                 "sourceRetryWait":  null,
+                                                                 "sqlReaderQuery":  {
+                                                                                        "type":  "Expression",
+                                                                                        "value":  "@concat(\u0027EXEC [dbo].[sp_ADF_Audit_Log] @ConfigId=\u0027, string(item().ConfigID), \u0027, @Status=\u0027\u0027FAILED\u0027\u0027, @ErrorMsg=\u0027\u0027\u0027, replace(string(activity(\u0027FL_OnlyCsv\u0027).error.message), \u0027\u0027\u0027\u0027, \u0027\u0027\u0027\u0027\u0027\u0027), \u0027\u0027\u0027; SELECT 1 AS Logged\u0027)"
+                                                                                    },
+                                                                 "sqlReaderStoredProcedureName":  null,
+                                                                 "storedProcedureParameters":  null,
+                                                                 "type":  "AzureSqlSource"
+                                                             },
+                                                  "state":  null,
+                                                  "type":  "Lookup",
+                                                  "userProperties":  [
+
+                                                                     ]
+                                              },
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dataset":  {
+                                                                  "parameters":  {
+
+                                                                                 },
+                                                                  "referenceName":  "DS_Config_sql",
+                                                                  "type":  "DatasetReference"
+                                                              },
+                                                  "dependsOn":  [
+                                                                    {
+                                                                        "activity":  "IF_HasFiles",
+                                                                        "additionalProperties":  null,
+                                                                        "dependencyConditions":  [
+                                                                                                     "Failed"
+                                                                                                 ]
+                                                                    }
+                                                                ],
+                                                  "description":  null,
+                                                  "firstRowOnly":  true,
+                                                  "linkedServiceName":  null,
+                                                  "name":  "SP_Log_Failed_Process",
+                                                  "onInactiveMarkAs":  null,
+                                                  "policy":  {
+                                                                 "additionalProperties":  null,
+                                                                 "retry":  0,
+                                                                 "retryIntervalInSeconds":  30,
+                                                                 "secureInput":  false,
+                                                                 "secureOutput":  false,
+                                                                 "timeout":  "0.00:10:00"
+                                                             },
+                                                  "source":  {
+                                                                 "additionalColumns":  null,
+                                                                 "additionalProperties":  null,
+                                                                 "disableMetricsCollection":  null,
+                                                                 "isolationLevel":  null,
+                                                                 "maxConcurrentConnections":  null,
+                                                                 "partitionOption":  "None",
+                                                                 "partitionSettings":  null,
+                                                                 "produceAdditionalTypes":  null,
+                                                                 "queryTimeout":  "00:10:00",
+                                                                 "sourceRetryCount":  null,
+                                                                 "sourceRetryWait":  null,
+                                                                 "sqlReaderQuery":  {
+                                                                                        "type":  "Expression",
+                                                                                        "value":  "@concat(\u0027EXEC [dbo].[sp_ADF_Audit_Log] @ConfigId=\u0027, string(item().ConfigID), \u0027, @Status=\u0027\u0027FAILED\u0027\u0027, @ErrorMsg=\u0027\u0027\u0027, replace(string(activity(\u0027IF_HasFiles\u0027).error.message), \u0027\u0027\u0027\u0027, \u0027\u0027\u0027\u0027\u0027\u0027), \u0027\u0027\u0027; SELECT 1 AS Logged\u0027)"
+                                                                                    },
+                                                                 "sqlReaderStoredProcedureName":  null,
+                                                                 "storedProcedureParameters":  null,
+                                                                 "type":  "AzureSqlSource"
+                                                             },
+                                                  "state":  null,
+                                                  "type":  "Lookup",
+                                                  "userProperties":  [
+
+                                                                     ]
+                                              }
+                                          ],
+                           "additionalProperties":  null,
+                           "batchCount":  3,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "LK_Config",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  null,
+                           "isSequential":  false,
+                           "items":  {
+                                         "type":  "Expression",
+                                         "value":  "@activity(\u0027LK_Config\u0027).output.value"
+                                     },
+                           "name":  "FE_Process_Files",
+                           "onInactiveMarkAs":  null,
+                           "state":  null,
+                           "type":  "ForEach",
+                           "userProperties":  [
+
+                                              ]
+                       }
+                   ],
+    "additionalProperties":  null,
+    "annotations":  [
+
+                    ],
+    "concurrency":  1,
+    "description":  null,
+    "etag":  "fb042e64-0000-0100-0000-6ac9c7300000",
+    "folder":  null,
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/pipelines/PL_copy_param_1",
+    "name":  "PL_copy_param_1",
+    "parameters":  null,
+    "policy":  {
+                   "elapsedTimeMetric":  {
+                                             "duration":  null
+                                         }
+               },
+    "resourceGroup":  "data_test",
+    "runDimensions":  null,
+    "type":  "Microsoft.DataFactory/factories/pipelines",
+    "variables":  null
+}

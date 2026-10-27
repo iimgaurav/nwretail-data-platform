@@ -1,0 +1,24 @@
+# Python / Databricks
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints
+*.lvdash.json
+
+# Environment & Secrets
+.env
+*.pem
+*.key
+.databrickscfg
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store

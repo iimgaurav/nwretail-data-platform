@@ -1,0 +1,57 @@
+﻿{
+    "etag":  "f804b9c4-0000-0100-0000-6ac94f7a0000",
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/datasets/DS_Blob_Output",
+    "name":  "DS_Blob_Output",
+    "properties":  {
+                       "additionalProperties":  null,
+                       "annotations":  [
+
+                                       ],
+                       "columnDelimiter":  ",",
+                       "compressionCodec":  null,
+                       "compressionLevel":  null,
+                       "description":  null,
+                       "encodingName":  null,
+                       "escapeChar":  "\\",
+                       "firstRowAsHeader":  null,
+                       "folder":  null,
+                       "linkedServiceName":  {
+                                                 "parameters":  null,
+                                                 "referenceName":  "LS_BlobStorage",
+                                                 "type":  "LinkedServiceReference"
+                                             },
+                       "location":  {
+                                        "additionalProperties":  null,
+                                        "container":  {
+                                                          "type":  "Expression",
+                                                          "value":  "@dataset().pContainer"
+                                                      },
+                                        "fileName":  null,
+                                        "folderPath":  {
+                                                           "type":  "Expression",
+                                                           "value":  "@dataset().pFolder"
+                                                       },
+                                        "type":  "AzureBlobStorageLocation"
+                                    },
+                       "nullValue":  null,
+                       "parameters":  {
+                                          "pContainer":  {
+                                                             "defaultValue":  null,
+                                                             "type":  "string"
+                                                         },
+                                          "pFolder":  {
+                                                          "defaultValue":  null,
+                                                          "type":  "string"
+                                                      }
+                                      },
+                       "quoteChar":  "\"",
+                       "rowDelimiter":  null,
+                       "schema":  [
+
+                                  ],
+                       "structure":  null,
+                       "type":  "DelimitedText"
+                   },
+    "resourceGroup":  "data_test",
+    "type":  "Microsoft.DataFactory/factories/datasets"
+}

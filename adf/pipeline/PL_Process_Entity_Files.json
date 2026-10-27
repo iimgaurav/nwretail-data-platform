@@ -1,0 +1,711 @@
+﻿{
+    "activities":  [
+                       {
+                           "additionalProperties":  null,
+                           "dataset":  {
+                                           "parameters":  {
+                                                              "pContainer":  {
+                                                                                 "type":  "Expression",
+                                                                                 "value":  "@pipeline().parameters.pSourceContainer"
+                                                                             },
+                                                              "pFolder":  {
+                                                                              "type":  "Expression",
+                                                                              "value":  "@pipeline().parameters.pSourceFolder"
+                                                                          }
+                                                          },
+                                           "referenceName":  "DS_NW_Raw_Binary",
+                                           "type":  "DatasetReference"
+                                       },
+                           "dependsOn":  [
+
+                                         ],
+                           "description":  "Lists files in the configured source ADLS folder.",
+                           "fieldList":  [
+                                             "childItems"
+                                         ],
+                           "formatSettings":  {
+                                                  "additionalProperties":  null,
+                                                  "compressionProperties":  null,
+                                                  "type":  "BinaryReadSettings"
+                                              },
+                           "linkedServiceName":  null,
+                           "name":  "GM_SourceFolder",
+                           "onInactiveMarkAs":  null,
+                           "policy":  {
+                                          "additionalProperties":  null,
+                                          "retry":  2,
+                                          "retryIntervalInSeconds":  30,
+                                          "secureInput":  false,
+                                          "secureOutput":  false,
+                                          "timeout":  "0.12:00:00"
+                                      },
+                           "state":  null,
+                           "storeSettings":  {
+                                                 "additionalProperties":  null,
+                                                 "deleteFilesAfterCompletion":  null,
+                                                 "disableMetricsCollection":  null,
+                                                 "enablePartitionDiscovery":  false,
+                                                 "fileListPath":  null,
+                                                 "maxConcurrentConnections":  null,
+                                                 "modifiedDatetimeEnd":  null,
+                                                 "modifiedDatetimeStart":  null,
+                                                 "partitionRootPath":  null,
+                                                 "recursive":  false,
+                                                 "type":  "AzureBlobFSReadSettings",
+                                                 "wildcardFileName":  null,
+                                                 "wildcardFolderPath":  null
+                                             },
+                           "type":  "GetMetadata",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "additionalProperties":  null,
+                           "condition":  {
+                                             "type":  "Expression",
+                                             "value":  "@and(equals(item().type,\u0027File\u0027),endsWith(item().name,\u0027.csv\u0027))"
+                                         },
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "GM_SourceFolder",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  null,
+                           "items":  {
+                                         "type":  "Expression",
+                                         "value":  "@activity(\u0027GM_SourceFolder\u0027).output.childItems"
+                                     },
+                           "name":  "FL_FilterFiles",
+                           "onInactiveMarkAs":  null,
+                           "state":  null,
+                           "type":  "Filter",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "activities":  [
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dataset":  {
+                                                                  "parameters":  {
+                                                                                     "pContainer":  {
+                                                                                                        "type":  "Expression",
+                                                                                                        "value":  "@pipeline().parameters.pSourceContainer"
+                                                                                                    },
+                                                                                     "pFolder":  {
+                                                                                                     "type":  "Expression",
+                                                                                                     "value":  "@pipeline().parameters.pSourceFolder"
+                                                                                                 }
+                                                                                 },
+                                                                  "referenceName":  "DS_NW_Raw_Binary",
+                                                                  "type":  "DatasetReference"
+                                                              },
+                                                  "dependsOn":  [
+
+                                                                ],
+                                                  "description":  "Retrieves lastModified timestamp for the file to support idempotency.",
+                                                  "fieldList":  [
+                                                                    "lastModified"
+                                                                ],
+                                                  "formatSettings":  {
+                                                                         "additionalProperties":  null,
+                                                                         "compressionProperties":  null,
+                                                                         "type":  "BinaryReadSettings"
+                                                                     },
+                                                  "linkedServiceName":  null,
+                                                  "name":  "GM_FileMetadata",
+                                                  "onInactiveMarkAs":  null,
+                                                  "policy":  {
+                                                                 "additionalProperties":  null,
+                                                                 "retry":  2,
+                                                                 "retryIntervalInSeconds":  30,
+                                                                 "secureInput":  false,
+                                                                 "secureOutput":  false,
+                                                                 "timeout":  null
+                                                             },
+                                                  "state":  null,
+                                                  "storeSettings":  {
+                                                                        "additionalProperties":  null,
+                                                                        "deleteFilesAfterCompletion":  null,
+                                                                        "disableMetricsCollection":  null,
+                                                                        "enablePartitionDiscovery":  false,
+                                                                        "fileListPath":  null,
+                                                                        "maxConcurrentConnections":  null,
+                                                                        "modifiedDatetimeEnd":  null,
+                                                                        "modifiedDatetimeStart":  null,
+                                                                        "partitionRootPath":  null,
+                                                                        "recursive":  false,
+                                                                        "type":  "AzureBlobFSReadSettings",
+                                                                        "wildcardFileName":  null,
+                                                                        "wildcardFolderPath":  null
+                                                                    },
+                                                  "type":  "GetMetadata",
+                                                  "userProperties":  [
+
+                                                                     ]
+                                              },
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dataset":  {
+                                                                  "parameters":  {
+
+                                                                                 },
+                                                                  "referenceName":  "DS_SQL_Generic",
+                                                                  "type":  "DatasetReference"
+                                                              },
+                                                  "dependsOn":  [
+                                                                    {
+                                                                        "activity":  "GM_FileMetadata",
+                                                                        "additionalProperties":  null,
+                                                                        "dependencyConditions":  [
+                                                                                                     "Succeeded"
+                                                                                                 ]
+                                                                    }
+                                                                ],
+                                                  "description":  "Checks SQL ProcessedFiles table to see if this exact file version was already ingested.",
+                                                  "firstRowOnly":  true,
+                                                  "linkedServiceName":  null,
+                                                  "name":  "LK_CheckProcessedFile",
+                                                  "onInactiveMarkAs":  null,
+                                                  "policy":  {
+                                                                 "additionalProperties":  null,
+                                                                 "retry":  2,
+                                                                 "retryIntervalInSeconds":  30,
+                                                                 "secureInput":  false,
+                                                                 "secureOutput":  false,
+                                                                 "timeout":  "0.12:00:00"
+                                                             },
+                                                  "source":  {
+                                                                 "additionalColumns":  null,
+                                                                 "additionalProperties":  null,
+                                                                 "disableMetricsCollection":  null,
+                                                                 "isolationLevel":  null,
+                                                                 "maxConcurrentConnections":  null,
+                                                                 "partitionOption":  "None",
+                                                                 "partitionSettings":  null,
+                                                                 "produceAdditionalTypes":  null,
+                                                                 "queryTimeout":  "02:00:00",
+                                                                 "sourceRetryCount":  null,
+                                                                 "sourceRetryWait":  null,
+                                                                 "sqlReaderQuery":  null,
+                                                                 "sqlReaderStoredProcedureName":  "[dbo].[usp_IsFileProcessed]",
+                                                                 "storedProcedureParameters":  {
+                                                                                                   "FileName":  {
+                                                                                                                    "type":  "String",
+                                                                                                                    "value":  {
+                                                                                                                                  "type":  "Expression",
+                                                                                                                                  "value":  "@item().name"
+                                                                                                                              }
+                                                                                                                },
+                                                                                                   "SourceContainer":  {
+                                                                                                                           "type":  "String",
+                                                                                                                           "value":  {
+                                                                                                                                         "type":  "Expression",
+                                                                                                                                         "value":  "@pipeline().parameters.pSourceContainer"
+                                                                                                                                     }
+                                                                                                                       },
+                                                                                                   "SourceFolder":  {
+                                                                                                                        "type":  "String",
+                                                                                                                        "value":  {
+                                                                                                                                      "type":  "Expression",
+                                                                                                                                      "value":  "@pipeline().parameters.pSourceFolder"
+                                                                                                                                  }
+                                                                                                                    },
+                                                                                                   "SourceLastModifiedUtc":  {
+                                                                                                                                 "type":  "String",
+                                                                                                                                 "value":  {
+                                                                                                                                               "type":  "Expression",
+                                                                                                                                               "value":  "@activity(\u0027GM_FileMetadata\u0027).output.lastModified"
+                                                                                                                                           }
+                                                                                                                             }
+                                                                                               },
+                                                                 "type":  "AzureSqlSource"
+                                                             },
+                                                  "state":  null,
+                                                  "type":  "Lookup",
+                                                  "userProperties":  [
+
+                                                                     ]
+                                              },
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dependsOn":  [
+                                                                    {
+                                                                        "activity":  "LK_CheckProcessedFile",
+                                                                        "additionalProperties":  null,
+                                                                        "dependencyConditions":  [
+                                                                                                     "Succeeded"
+                                                                                                 ]
+                                                                    }
+                                                                ],
+                                                  "description":  "Copies file to Bronze only if not already processed; logs failure on copy error.",
+                                                  "expression":  {
+                                                                     "type":  "Expression",
+                                                                     "value":  "@equals(int(activity(\u0027LK_CheckProcessedFile\u0027).output.firstRow.ProcessedCount),0)"
+                                                                 },
+                                                  "ifFalseActivities":  null,
+                                                  "ifTrueActivities":  [
+                                                                           {
+                                                                               "additionalProperties":  null,
+                                                                               "dataIntegrationUnits":  null,
+                                                                               "dependsOn":  [
+
+                                                                                             ],
+                                                                               "description":  "Copies the raw CSV file from ADLS raw to bronze container.",
+                                                                               "enableSkipIncompatibleRow":  null,
+                                                                               "enableStaging":  false,
+                                                                               "inputs":  [
+                                                                                              {
+                                                                                                  "parameters":  {
+                                                                                                                     "pContainer":  {
+                                                                                                                                        "type":  "Expression",
+                                                                                                                                        "value":  "@pipeline().parameters.pSourceContainer"
+                                                                                                                                    },
+                                                                                                                     "pFileName":  {
+                                                                                                                                       "type":  "Expression",
+                                                                                                                                       "value":  "@item().name"
+                                                                                                                                   },
+                                                                                                                     "pFolder":  {
+                                                                                                                                     "type":  "Expression",
+                                                                                                                                     "value":  "@pipeline().parameters.pSourceFolder"
+                                                                                                                                 }
+                                                                                                                 },
+                                                                                                  "referenceName":  "DS_NW_Raw_CSV",
+                                                                                                  "type":  "DatasetReference"
+                                                                                              }
+                                                                                          ],
+                                                                               "linkedServiceName":  null,
+                                                                               "logSettings":  null,
+                                                                               "logStorageSettings":  null,
+                                                                               "name":  "CP_Raw_To_Bronze",
+                                                                               "onInactiveMarkAs":  null,
+                                                                               "outputs":  [
+                                                                                               {
+                                                                                                   "parameters":  {
+                                                                                                                      "pFileName":  {
+                                                                                                                                        "type":  "Expression",
+                                                                                                                                        "value":  "@item().name"
+                                                                                                                                    },
+                                                                                                                      "pFolder":  {
+                                                                                                                                      "type":  "Expression",
+                                                                                                                                      "value":  "@pipeline().parameters.pDestinationFolder"
+                                                                                                                                  }
+                                                                                                                  },
+                                                                                                   "referenceName":  "DS_NW_Bronze_CSV",
+                                                                                                   "type":  "DatasetReference"
+                                                                                               }
+                                                                                           ],
+                                                                               "parallelCopies":  null,
+                                                                               "policy":  {
+                                                                                              "additionalProperties":  null,
+                                                                                              "retry":  2,
+                                                                                              "retryIntervalInSeconds":  30,
+                                                                                              "secureInput":  false,
+                                                                                              "secureOutput":  false,
+                                                                                              "timeout":  "0.12:00:00"
+                                                                                          },
+                                                                               "preserve":  null,
+                                                                               "preserveRules":  null,
+                                                                               "redirectIncompatibleRowSettings":  null,
+                                                                               "sink":  {
+                                                                                            "additionalProperties":  null,
+                                                                                            "disableMetricsCollection":  null,
+                                                                                            "formatSettings":  {
+                                                                                                                   "additionalProperties":  null,
+                                                                                                                   "fileExtension":  ".txt",
+                                                                                                                   "fileNamePrefix":  null,
+                                                                                                                   "maxRowsPerFile":  null,
+                                                                                                                   "quoteAllText":  true,
+                                                                                                                   "type":  "DelimitedTextWriteSettings"
+                                                                                                               },
+                                                                                            "maxConcurrentConnections":  null,
+                                                                                            "sinkRetryCount":  null,
+                                                                                            "sinkRetryWait":  null,
+                                                                                            "storeSettings":  {
+                                                                                                                  "additionalProperties":  null,
+                                                                                                                  "blockSizeInMb":  null,
+                                                                                                                  "copyBehavior":  null,
+                                                                                                                  "disableMetricsCollection":  null,
+                                                                                                                  "maxConcurrentConnections":  null,
+                                                                                                                  "metadata":  null,
+                                                                                                                  "type":  "AzureBlobFSWriteSettings"
+                                                                                                              },
+                                                                                            "type":  "DelimitedTextSink",
+                                                                                            "writeBatchSize":  null,
+                                                                                            "writeBatchTimeout":  null
+                                                                                        },
+                                                                               "skipErrorFile":  null,
+                                                                               "source":  {
+                                                                                              "additionalColumns":  null,
+                                                                                              "additionalProperties":  null,
+                                                                                              "disableMetricsCollection":  null,
+                                                                                              "formatSettings":  {
+                                                                                                                     "additionalProperties":  null,
+                                                                                                                     "compressionProperties":  null,
+                                                                                                                     "skipLineCount":  null,
+                                                                                                                     "type":  "DelimitedTextReadSettings"
+                                                                                                                 },
+                                                                                              "maxConcurrentConnections":  null,
+                                                                                              "sourceRetryCount":  null,
+                                                                                              "sourceRetryWait":  null,
+                                                                                              "storeSettings":  {
+                                                                                                                    "additionalProperties":  null,
+                                                                                                                    "deleteFilesAfterCompletion":  null,
+                                                                                                                    "disableMetricsCollection":  null,
+                                                                                                                    "enablePartitionDiscovery":  false,
+                                                                                                                    "fileListPath":  null,
+                                                                                                                    "maxConcurrentConnections":  null,
+                                                                                                                    "modifiedDatetimeEnd":  null,
+                                                                                                                    "modifiedDatetimeStart":  null,
+                                                                                                                    "partitionRootPath":  null,
+                                                                                                                    "recursive":  false,
+                                                                                                                    "type":  "AzureBlobFSReadSettings",
+                                                                                                                    "wildcardFileName":  null,
+                                                                                                                    "wildcardFolderPath":  null
+                                                                                                                },
+                                                                                              "type":  "DelimitedTextSource"
+                                                                                          },
+                                                                               "stagingSettings":  null,
+                                                                               "state":  null,
+                                                                               "translator":  null,
+                                                                               "type":  "Copy",
+                                                                               "userProperties":  [
+
+                                                                                                  ],
+                                                                               "validateDataConsistency":  null
+                                                                           },
+                                                                           {
+                                                                               "additionalProperties":  null,
+                                                                               "dependsOn":  [
+                                                                                                 {
+                                                                                                     "activity":  "CP_Raw_To_Bronze",
+                                                                                                     "additionalProperties":  null,
+                                                                                                     "dependencyConditions":  [
+                                                                                                                                  "Succeeded"
+                                                                                                                              ]
+                                                                                                 }
+                                                                                             ],
+                                                                               "description":  "Logs successful file copy to FileIngestionAudit and updates ProcessedFiles state.",
+                                                                               "linkedServiceName":  {
+                                                                                                         "parameters":  null,
+                                                                                                         "referenceName":  "LS_AzureSQL_Metadata",
+                                                                                                         "type":  "LinkedServiceReference"
+                                                                                                     },
+                                                                               "name":  "SP_LogSuccess",
+                                                                               "onInactiveMarkAs":  null,
+                                                                               "policy":  {
+                                                                                              "additionalProperties":  null,
+                                                                                              "retry":  2,
+                                                                                              "retryIntervalInSeconds":  30,
+                                                                                              "secureInput":  false,
+                                                                                              "secureOutput":  false,
+                                                                                              "timeout":  null
+                                                                                          },
+                                                                               "state":  null,
+                                                                               "storedProcedureName":  "[dbo].[usp_LogFileResult]",
+                                                                               "storedProcedureParameters":  {
+                                                                                                                 "DataReadBytes":  {
+                                                                                                                                       "type":  "String",
+                                                                                                                                       "value":  {
+                                                                                                                                                     "type":  "Expression",
+                                                                                                                                                     "value":  "@string(activity(\u0027CP_Raw_To_Bronze\u0027).output.dataRead)"
+                                                                                                                                                 }
+                                                                                                                                   },
+                                                                                                                 "DataWrittenBytes":  {
+                                                                                                                                          "type":  "String",
+                                                                                                                                          "value":  {
+                                                                                                                                                        "type":  "Expression",
+                                                                                                                                                        "value":  "@string(activity(\u0027CP_Raw_To_Bronze\u0027).output.dataWritten)"
+                                                                                                                                                    }
+                                                                                                                                      },
+                                                                                                                 "DestinationContainer":  {
+                                                                                                                                              "type":  "String",
+                                                                                                                                              "value":  {
+                                                                                                                                                            "type":  "Expression",
+                                                                                                                                                            "value":  "@pipeline().parameters.pDestinationContainer"
+                                                                                                                                                        }
+                                                                                                                                          },
+                                                                                                                 "DestinationFolder":  {
+                                                                                                                                           "type":  "String",
+                                                                                                                                           "value":  {
+                                                                                                                                                         "type":  "Expression",
+                                                                                                                                                         "value":  "@pipeline().parameters.pDestinationFolder"
+                                                                                                                                                     }
+                                                                                                                                       },
+                                                                                                                 "EntityName":  {
+                                                                                                                                    "type":  "String",
+                                                                                                                                    "value":  {
+                                                                                                                                                  "type":  "Expression",
+                                                                                                                                                  "value":  "@pipeline().parameters.pEntityName"
+                                                                                                                                              }
+                                                                                                                                },
+                                                                                                                 "ErrorMessage":  {
+                                                                                                                                      "type":  "String",
+                                                                                                                                      "value":  null
+                                                                                                                                  },
+                                                                                                                 "FileName":  {
+                                                                                                                                  "type":  "String",
+                                                                                                                                  "value":  {
+                                                                                                                                                "type":  "Expression",
+                                                                                                                                                "value":  "@item().name"
+                                                                                                                                            }
+                                                                                                                              },
+                                                                                                                 "PipelineName":  {
+                                                                                                                                      "type":  "String",
+                                                                                                                                      "value":  {
+                                                                                                                                                    "type":  "Expression",
+                                                                                                                                                    "value":  "@pipeline().Pipeline"
+                                                                                                                                                }
+                                                                                                                                  },
+                                                                                                                 "PipelineRunId":  {
+                                                                                                                                       "type":  "String",
+                                                                                                                                       "value":  {
+                                                                                                                                                     "type":  "Expression",
+                                                                                                                                                     "value":  "@pipeline().RunId"
+                                                                                                                                                 }
+                                                                                                                                   },
+                                                                                                                 "SourceContainer":  {
+                                                                                                                                         "type":  "String",
+                                                                                                                                         "value":  {
+                                                                                                                                                       "type":  "Expression",
+                                                                                                                                                       "value":  "@pipeline().parameters.pSourceContainer"
+                                                                                                                                                   }
+                                                                                                                                     },
+                                                                                                                 "SourceFolder":  {
+                                                                                                                                      "type":  "String",
+                                                                                                                                      "value":  {
+                                                                                                                                                    "type":  "Expression",
+                                                                                                                                                    "value":  "@pipeline().parameters.pSourceFolder"
+                                                                                                                                                }
+                                                                                                                                  },
+                                                                                                                 "SourceLastModifiedUtc":  {
+                                                                                                                                               "type":  "String",
+                                                                                                                                               "value":  {
+                                                                                                                                                             "type":  "Expression",
+                                                                                                                                                             "value":  "@activity(\u0027GM_FileMetadata\u0027).output.lastModified"
+                                                                                                                                                         }
+                                                                                                                                           },
+                                                                                                                 "Status":  {
+                                                                                                                                "type":  "String",
+                                                                                                                                "value":  "Succeeded"
+                                                                                                                            }
+                                                                                                             },
+                                                                               "type":  "SqlServerStoredProcedure",
+                                                                               "userProperties":  [
+
+                                                                                                  ]
+                                                                           },
+                                                                           {
+                                                                               "additionalProperties":  null,
+                                                                               "dependsOn":  [
+                                                                                                 {
+                                                                                                     "activity":  "CP_Raw_To_Bronze",
+                                                                                                     "additionalProperties":  null,
+                                                                                                     "dependencyConditions":  [
+                                                                                                                                  "Failed"
+                                                                                                                              ]
+                                                                                                 }
+                                                                                             ],
+                                                                               "description":  "Logs copy failure to FileIngestionAudit without updating ProcessedFiles state (allows retry on next run).",
+                                                                               "linkedServiceName":  {
+                                                                                                         "parameters":  null,
+                                                                                                         "referenceName":  "LS_AzureSQL_Metadata",
+                                                                                                         "type":  "LinkedServiceReference"
+                                                                                                     },
+                                                                               "name":  "SP_LogFailure",
+                                                                               "onInactiveMarkAs":  null,
+                                                                               "policy":  {
+                                                                                              "additionalProperties":  null,
+                                                                                              "retry":  2,
+                                                                                              "retryIntervalInSeconds":  30,
+                                                                                              "secureInput":  false,
+                                                                                              "secureOutput":  false,
+                                                                                              "timeout":  null
+                                                                                          },
+                                                                               "state":  null,
+                                                                               "storedProcedureName":  "[dbo].[usp_LogFileResult]",
+                                                                               "storedProcedureParameters":  {
+                                                                                                                 "DataReadBytes":  {
+                                                                                                                                       "type":  "String",
+                                                                                                                                       "value":  null
+                                                                                                                                   },
+                                                                                                                 "DataWrittenBytes":  {
+                                                                                                                                          "type":  "String",
+                                                                                                                                          "value":  null
+                                                                                                                                      },
+                                                                                                                 "DestinationContainer":  {
+                                                                                                                                              "type":  "String",
+                                                                                                                                              "value":  {
+                                                                                                                                                            "type":  "Expression",
+                                                                                                                                                            "value":  "@pipeline().parameters.pDestinationContainer"
+                                                                                                                                                        }
+                                                                                                                                          },
+                                                                                                                 "DestinationFolder":  {
+                                                                                                                                           "type":  "String",
+                                                                                                                                           "value":  {
+                                                                                                                                                         "type":  "Expression",
+                                                                                                                                                         "value":  "@pipeline().parameters.pDestinationFolder"
+                                                                                                                                                     }
+                                                                                                                                       },
+                                                                                                                 "EntityName":  {
+                                                                                                                                    "type":  "String",
+                                                                                                                                    "value":  {
+                                                                                                                                                  "type":  "Expression",
+                                                                                                                                                  "value":  "@pipeline().parameters.pEntityName"
+                                                                                                                                              }
+                                                                                                                                },
+                                                                                                                 "ErrorMessage":  {
+                                                                                                                                      "type":  "String",
+                                                                                                                                      "value":  {
+                                                                                                                                                    "type":  "Expression",
+                                                                                                                                                    "value":  "@coalesce(activity(\u0027CP_Raw_To_Bronze\u0027).error.message,\u0027Copy activity failed\u0027)"
+                                                                                                                                                }
+                                                                                                                                  },
+                                                                                                                 "FileName":  {
+                                                                                                                                  "type":  "String",
+                                                                                                                                  "value":  {
+                                                                                                                                                "type":  "Expression",
+                                                                                                                                                "value":  "@item().name"
+                                                                                                                                            }
+                                                                                                                              },
+                                                                                                                 "PipelineName":  {
+                                                                                                                                      "type":  "String",
+                                                                                                                                      "value":  {
+                                                                                                                                                    "type":  "Expression",
+                                                                                                                                                    "value":  "@pipeline().Pipeline"
+                                                                                                                                                }
+                                                                                                                                  },
+                                                                                                                 "PipelineRunId":  {
+                                                                                                                                       "type":  "String",
+                                                                                                                                       "value":  {
+                                                                                                                                                     "type":  "Expression",
+                                                                                                                                                     "value":  "@pipeline().RunId"
+                                                                                                                                                 }
+                                                                                                                                   },
+                                                                                                                 "SourceContainer":  {
+                                                                                                                                         "type":  "String",
+                                                                                                                                         "value":  {
+                                                                                                                                                       "type":  "Expression",
+                                                                                                                                                       "value":  "@pipeline().parameters.pSourceContainer"
+                                                                                                                                                   }
+                                                                                                                                     },
+                                                                                                                 "SourceFolder":  {
+                                                                                                                                      "type":  "String",
+                                                                                                                                      "value":  {
+                                                                                                                                                    "type":  "Expression",
+                                                                                                                                                    "value":  "@pipeline().parameters.pSourceFolder"
+                                                                                                                                                }
+                                                                                                                                  },
+                                                                                                                 "SourceLastModifiedUtc":  {
+                                                                                                                                               "type":  "String",
+                                                                                                                                               "value":  {
+                                                                                                                                                             "type":  "Expression",
+                                                                                                                                                             "value":  "@activity(\u0027GM_FileMetadata\u0027).output.lastModified"
+                                                                                                                                                         }
+                                                                                                                                           },
+                                                                                                                 "Status":  {
+                                                                                                                                "type":  "String",
+                                                                                                                                "value":  "Failed"
+                                                                                                                            }
+                                                                                                             },
+                                                                               "type":  "SqlServerStoredProcedure",
+                                                                               "userProperties":  [
+
+                                                                                                  ]
+                                                                           }
+                                                                       ],
+                                                  "name":  "IF_CopyIfNew",
+                                                  "onInactiveMarkAs":  null,
+                                                  "state":  null,
+                                                  "type":  "IfCondition",
+                                                  "userProperties":  [
+
+                                                                     ]
+                                              }
+                                          ],
+                           "additionalProperties":  null,
+                           "batchCount":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "FL_FilterFiles",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Sequentially processes each eligible CSV file with idempotency checks.",
+                           "isSequential":  true,
+                           "items":  {
+                                         "type":  "Expression",
+                                         "value":  "@activity(\u0027FL_FilterFiles\u0027).output.value"
+                                     },
+                           "name":  "FE_SourceFiles",
+                           "onInactiveMarkAs":  null,
+                           "state":  null,
+                           "type":  "ForEach",
+                           "userProperties":  [
+
+                                              ]
+                       }
+                   ],
+    "additionalProperties":  null,
+    "annotations":  [
+                        "Production",
+                        "BronzeLayer",
+                        "Idempotent",
+                        "Retry-Enabled",
+                        "Failure-Logged"
+                    ],
+    "concurrency":  null,
+    "description":  null,
+    "etag":  "7a05588f-0000-0100-0000-6ad70f1f0000",
+    "folder":  null,
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/pipelines/PL_Process_Entity_Files",
+    "name":  "PL_Process_Entity_Files",
+    "parameters":  {
+                       "pConfigId":  {
+                                         "defaultValue":  null,
+                                         "type":  "Int"
+                                     },
+                       "pDestinationContainer":  {
+                                                     "defaultValue":  null,
+                                                     "type":  "String"
+                                                 },
+                       "pDestinationFolder":  {
+                                                  "defaultValue":  null,
+                                                  "type":  "String"
+                                              },
+                       "pEntityName":  {
+                                           "defaultValue":  null,
+                                           "type":  "String"
+                                       },
+                       "pFilePattern":  {
+                                            "defaultValue":  null,
+                                            "type":  "String"
+                                        },
+                       "pSourceContainer":  {
+                                                "defaultValue":  null,
+                                                "type":  "String"
+                                            },
+                       "pSourceFolder":  {
+                                             "defaultValue":  null,
+                                             "type":  "String"
+                                         }
+                   },
+    "policy":  {
+                   "elapsedTimeMetric":  {
+                                             "duration":  null
+                                         }
+               },
+    "resourceGroup":  "data_test",
+    "runDimensions":  null,
+    "type":  "Microsoft.DataFactory/factories/pipelines",
+    "variables":  null
+}

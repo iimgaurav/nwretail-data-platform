@@ -1,0 +1,262 @@
+﻿{
+    "activities":  [
+                       {
+                           "additionalProperties":  null,
+                           "dependsOn":  [
+
+                                         ],
+                           "description":  "Acquires pipeline execution lock to prevent concurrent runs.",
+                           "linkedServiceName":  {
+                                                     "parameters":  null,
+                                                     "referenceName":  "LS_AzureSQL_Metadata",
+                                                     "type":  "LinkedServiceReference"
+                                                 },
+                           "name":  "SP_LockPipeline",
+                           "onInactiveMarkAs":  null,
+                           "policy":  {
+                                          "additionalProperties":  null,
+                                          "retry":  1,
+                                          "retryIntervalInSeconds":  30,
+                                          "secureInput":  false,
+                                          "secureOutput":  false,
+                                          "timeout":  null
+                                      },
+                           "state":  null,
+                           "storedProcedureName":  "[dbo].[sp_LockPipeline]",
+                           "storedProcedureParameters":  {
+                                                             "PipelineName":  {
+                                                                                  "type":  "String",
+                                                                                  "value":  "@pipeline().Pipeline"
+                                                                              },
+                                                             "PipelineRunId":  {
+                                                                                   "type":  "String",
+                                                                                   "value":  "@pipeline().RunId"
+                                                                               },
+                                                             "TriggeredBy":  {
+                                                                                 "type":  "String",
+                                                                                 "value":  "@pipeline().TriggerTime"
+                                                                             }
+                                                         },
+                           "type":  "SqlServerStoredProcedure",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "additionalProperties":  null,
+                           "dataset":  {
+                                           "parameters":  {
+
+                                                          },
+                                           "referenceName":  "DS_SQL_Generic",
+                                           "type":  "DatasetReference"
+                                       },
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "SP_LockPipeline",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Reads active entity configs. Depends on SP_LockPipeline so a run cannot read configuration while another run still owns the pipeline lock.",
+                           "firstRowOnly":  false,
+                           "linkedServiceName":  null,
+                           "name":  "LK_GetActiveEntities",
+                           "onInactiveMarkAs":  null,
+                           "policy":  {
+                                          "additionalProperties":  null,
+                                          "retry":  1,
+                                          "retryIntervalInSeconds":  30,
+                                          "secureInput":  false,
+                                          "secureOutput":  false,
+                                          "timeout":  "0.12:00:00"
+                                      },
+                           "source":  {
+                                          "additionalColumns":  null,
+                                          "additionalProperties":  null,
+                                          "disableMetricsCollection":  null,
+                                          "isolationLevel":  null,
+                                          "maxConcurrentConnections":  null,
+                                          "partitionOption":  "None",
+                                          "partitionSettings":  null,
+                                          "produceAdditionalTypes":  null,
+                                          "queryTimeout":  "02:00:00",
+                                          "sourceRetryCount":  null,
+                                          "sourceRetryWait":  null,
+                                          "sqlReaderQuery":  "SELECT ConfigID AS ConfigId, NULL AS EntityName, SourceContainer, SourceFolder, TargetContainer AS DestinationContainer, TargetFolder AS DestinationFolder, \u0027*.csv\u0027 AS FilePattern FROM dbo.ADF_Pipeline_Config WHERE IsActive = 1 ORDER BY ConfigID;",
+                                          "sqlReaderStoredProcedureName":  null,
+                                          "storedProcedureParameters":  null,
+                                          "type":  "AzureSqlSource"
+                                      },
+                           "state":  null,
+                           "type":  "Lookup",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "activities":  [
+                                              {
+                                                  "additionalProperties":  null,
+                                                  "dependsOn":  [
+
+                                                                ],
+                                                  "description":  null,
+                                                  "name":  "EP_ProcessEntity",
+                                                  "onInactiveMarkAs":  null,
+                                                  "parameters":  {
+                                                                     "pConfigId":  {
+                                                                                       "type":  "Expression",
+                                                                                       "value":  "@item().ConfigId"
+                                                                                   },
+                                                                     "pDestinationContainer":  {
+                                                                                                   "type":  "Expression",
+                                                                                                   "value":  "@item().DestinationContainer"
+                                                                                               },
+                                                                     "pDestinationFolder":  {
+                                                                                                "type":  "Expression",
+                                                                                                "value":  "@item().DestinationFolder"
+                                                                                            },
+                                                                     "pEntityName":  {
+                                                                                         "type":  "Expression",
+                                                                                         "value":  "@item().EntityName"
+                                                                                     },
+                                                                     "pFilePattern":  {
+                                                                                          "type":  "Expression",
+                                                                                          "value":  "@item().FilePattern"
+                                                                                      },
+                                                                     "pSourceContainer":  {
+                                                                                              "type":  "Expression",
+                                                                                              "value":  "@item().SourceContainer"
+                                                                                          },
+                                                                     "pSourceFolder":  {
+                                                                                           "type":  "Expression",
+                                                                                           "value":  "@item().SourceFolder"
+                                                                                       }
+                                                                 },
+                                                  "pipeline":  {
+                                                                   "name":  null,
+                                                                   "referenceName":  "PL_Process_Entity_Files",
+                                                                   "type":  "PipelineReference"
+                                                               },
+                                                  "policy":  {
+                                                                 "additionalProperties":  null,
+                                                                 "secureInput":  false
+                                                             },
+                                                  "state":  null,
+                                                  "type":  "ExecutePipeline",
+                                                  "userProperties":  [
+
+                                                                     ],
+                                                  "waitOnCompletion":  true
+                                              }
+                                          ],
+                           "additionalProperties":  null,
+                           "batchCount":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "LK_GetActiveEntities",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Succeeded"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Iterates over each active entity configuration and processes files.",
+                           "isSequential":  true,
+                           "items":  {
+                                         "type":  "Expression",
+                                         "value":  "@activity(\u0027LK_GetActiveEntities\u0027).output.value"
+                                     },
+                           "name":  "FE_Entities",
+                           "onInactiveMarkAs":  null,
+                           "state":  null,
+                           "type":  "ForEach",
+                           "userProperties":  [
+
+                                              ]
+                       },
+                       {
+                           "additionalProperties":  null,
+                           "dependsOn":  [
+                                             {
+                                                 "activity":  "FE_Entities",
+                                                 "additionalProperties":  null,
+                                                 "dependencyConditions":  [
+                                                                              "Completed"
+                                                                          ]
+                                             }
+                                         ],
+                           "description":  "Releases the lock and records the outcome. RowsProcessed counts the entity configs attempted; RowsFailed is 1 when the ForEach did not fully succeed (per-file counts are not exposed by the ForEach activity).",
+                           "linkedServiceName":  {
+                                                     "parameters":  null,
+                                                     "referenceName":  "LS_AzureSQL_Metadata",
+                                                     "type":  "LinkedServiceReference"
+                                                 },
+                           "name":  "SP_UnlockPipeline",
+                           "onInactiveMarkAs":  null,
+                           "policy":  {
+                                          "additionalProperties":  null,
+                                          "retry":  1,
+                                          "retryIntervalInSeconds":  30,
+                                          "secureInput":  false,
+                                          "secureOutput":  false,
+                                          "timeout":  null
+                                      },
+                           "state":  null,
+                           "storedProcedureName":  "[dbo].[sp_UnlockPipeline]",
+                           "storedProcedureParameters":  {
+                                                             "ErrorMessage":  {
+                                                                                  "type":  "String",
+                                                                                  "value":  "@if(equals(activity(\u0027FE_Entities\u0027).status, \u0027Succeeded\u0027), \u0027\u0027, coalesce(activity(\u0027FE_Entities\u0027).error.message, \u0027Unknown error - inspect the activity run\u0027))"
+                                                                              },
+                                                             "PipelineName":  {
+                                                                                  "type":  "String",
+                                                                                  "value":  "@pipeline().Pipeline"
+                                                                              },
+                                                             "PipelineRunId":  {
+                                                                                   "type":  "String",
+                                                                                   "value":  "@pipeline().RunId"
+                                                                               },
+                                                             "RowsFailed":  {
+                                                                                "type":  "Int",
+                                                                                "value":  "@if(equals(activity(\u0027FE_Entities\u0027).status, \u0027Succeeded\u0027), 0, 1)"
+                                                                            },
+                                                             "RowsProcessed":  {
+                                                                                   "type":  "Int",
+                                                                                   "value":  "@if(equals(activity(\u0027FE_Entities\u0027).status, \u0027Succeeded\u0027), length(activity(\u0027LK_GetActiveEntities\u0027).output.value), 0)"
+                                                                               },
+                                                             "Status":  {
+                                                                            "type":  "String",
+                                                                            "value":  "@if(equals(activity(\u0027FE_Entities\u0027).status, \u0027Succeeded\u0027), \u0027Completed\u0027, \u0027Failed\u0027)"
+                                                                        }
+                                                         },
+                           "type":  "SqlServerStoredProcedure",
+                           "userProperties":  [
+
+                                              ]
+                       }
+                   ],
+    "additionalProperties":  null,
+    "annotations":  [
+
+                    ],
+    "concurrency":  null,
+    "description":  null,
+    "etag":  "a106c107-0000-0100-0000-6adf48fe0000",
+    "folder":  null,
+    "id":  "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.DataFactory/factories/demopiplineADF/pipelines/PL_Ingest_Raw_To_Bronze",
+    "name":  "PL_Ingest_Raw_To_Bronze",
+    "parameters":  null,
+    "policy":  {
+                   "elapsedTimeMetric":  {
+                                             "duration":  null
+                                         }
+               },
+    "resourceGroup":  "data_test",
+    "runDimensions":  null,
+    "type":  "Microsoft.DataFactory/factories/pipelines",
+    "variables":  null
+}
