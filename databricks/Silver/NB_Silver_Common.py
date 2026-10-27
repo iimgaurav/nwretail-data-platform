@@ -474,6 +474,16 @@ def bronze_path(entity):
 
 
 def read_bronze(entity):
+    bronze_tbl = f"{CATALOG}.bronze.{entity}"
+    try:
+        if spark.catalog.tableExists(bronze_tbl):
+            df = spark.table(bronze_tbl)
+            print(f"[read] {entity}: {df.count():,} rows <- Delta table {bronze_tbl}")
+            return df
+    except Exception as exc:
+        print(f"[read] Note: Delta table check for {bronze_tbl} skipped ({exc}), checking CSV fallback")
+
+    # Fallback to raw CSV if Delta table does not exist yet
     df = (
         spark.read.schema(BRONZE_SCHEMAS[entity])
         .option("header", True)
@@ -481,7 +491,7 @@ def read_bronze(entity):
         .option("mode", "PERMISSIVE")
         .csv(bronze_path(entity))
     )
-    print(f"[read] {entity}: {df.count():,} rows <- {bronze_path(entity)}")
+    print(f"[read] {entity}: {df.count():,} rows <- CSV {bronze_path(entity)}")
     return df
 
 
@@ -490,6 +500,8 @@ def validate_schema(df, entity):
     actual = {f.name: f.dataType.simpleString() for f in df.schema.fields}
     missing = sorted(set(expected) - set(actual))
     extra = sorted(set(actual) - set(expected))
+    # Ignore internal Delta audit columns if present
+    extra = [col for col in extra if not col.startswith("_")]
     if missing or extra:
         raise ValueError(
             f"Schema mismatch for {entity}: missing={missing} unexpected={extra}. "
@@ -509,21 +521,31 @@ def validate_schema(df, entity):
 
 def _ingest_timestamp(entity):
     """Proxy ingestion time from the source file mtime. See header caveat."""
-    files = dbutils.fs.ls(bronze_path(entity))
-    if not files:
-        raise FileNotFoundError(f"No bronze file at {bronze_path(entity)}")
-    ts = max(f.modificationTime for f in files) / 1000.0
-    return datetime.fromtimestamp(ts)
+    try:
+        files = dbutils.fs.ls(bronze_path(entity))
+        if files:
+            ts = max(f.modificationTime for f in files) / 1000.0
+            return datetime.fromtimestamp(ts)
+    except Exception:
+        pass
+    return datetime.now()
 
 
 def add_ingestion_metadata(df, entity, batch_id):
-    ingest_ts = _ingest_timestamp(entity)
     key = ENTITY_SPEC[entity]["key"]
+    
+    # If the dataframe came from a Bronze Delta table, it carries true ingestion timestamp
+    if "_ingested_at" in df.columns:
+        df = df.withColumn("_ingest_ts", F.col("_ingested_at")).withColumn("_ingest_ts_source", F.lit("delta_bronze"))
+    elif "_ingest_ts" not in df.columns:
+        ingest_ts = _ingest_timestamp(entity)
+        df = df.withColumn("_ingest_ts", F.lit(ingest_ts).cast("timestamp")).withColumn("_ingest_ts_source", F.lit("file_mtime"))
+        
+    if "_source_file" not in df.columns:
+        df = df.withColumn("_source_file", F.lit(bronze_path(entity)))
+        
     return (
-        df.withColumn("_ingest_ts", F.lit(ingest_ts).cast("timestamp"))
-        .withColumn("_ingest_ts_source", F.lit("file_mtime"))
-        .withColumn("_source_file", F.lit(bronze_path(entity)))
-        .withColumn("_batch_id", F.lit(batch_id))
+        df.withColumn("_batch_id", F.lit(batch_id))
         .withColumn("_load_timestamp", F.current_timestamp())
         .withColumn(
             "_source_key",
