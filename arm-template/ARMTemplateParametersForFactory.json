@@ -1,0 +1,52 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "value": "demopiplineADF"
+        },
+        "environment": {
+            "value": "prod"
+        },
+        "location": {
+            "value": "eastus2"
+        },
+        "adlsStorageAccountUrl": {
+            "value": "https://nwretaildatalake65.dfs.core.windows.net/"
+        },
+        "sqlServerName": {
+            "value": "databaseserver653.database.windows.net"
+        },
+        "sqlDatabaseName": {
+            "value": "data1"
+        },
+        "sqlAdminUserName": {
+            "value": "sqladmin"
+        },
+        "sqlAdminPassword": {
+            "reference": {
+                "keyVault": {
+                    "id": "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.KeyVault/vaults/nwretail-kv-prod"
+                },
+                "secretName": "SqlAdminPassword"
+            }
+        },
+        "blobStorageConnectionString": {
+            "reference": {
+                "keyVault": {
+                    "id": "/subscriptions/c720a2b4-bb20-42aa-963a-d6305ca5f34d/resourceGroups/data_test/providers/Microsoft.KeyVault/vaults/nwretail-kv-prod"
+                },
+                "secretName": "BlobStorageConnectionString"
+            }
+        },
+        "databricksHost": {
+            "value": "https://adb-7405610723825637.17.azuredatabricks.net"
+        },
+        "databricksBronzeToSilverJobId": {
+            "value": "383135890940752"
+        },
+        "databricksSilverToGoldJobId": {
+            "value": "383135890940753"
+        }
+    }
+}

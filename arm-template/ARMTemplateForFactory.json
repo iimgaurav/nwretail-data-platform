@@ -1,0 +1,850 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "factoryName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Azure Data Factory resource."
+            },
+            "defaultValue": "demopiplineADF"
+        },
+        "environment": {
+            "type": "string",
+            "defaultValue": "prod",
+            "allowedValues": [
+                "dev",
+                "test",
+                "prod"
+            ],
+            "metadata": {
+                "description": "Deployment environment name."
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Azure region for the Data Factory."
+            }
+        },
+        "adlsStorageAccountUrl": {
+            "type": "string",
+            "defaultValue": "https://nwretaildatalake65.dfs.core.windows.net/",
+            "metadata": {
+                "description": "Primary ADLS Gen2 endpoint URL for NorthWind Retail data lake."
+            }
+        },
+        "sqlServerName": {
+            "type": "string",
+            "defaultValue": "databaseserver653.database.windows.net",
+            "metadata": {
+                "description": "Azure SQL logical server fully qualified domain name."
+            }
+        },
+        "sqlDatabaseName": {
+            "type": "string",
+            "defaultValue": "data1",
+            "metadata": {
+                "description": "Azure SQL metadata database name."
+            }
+        },
+        "sqlAdminUserName": {
+            "type": "string",
+            "defaultValue": "sqladmin",
+            "metadata": {
+                "description": "Azure SQL admin username."
+            }
+        },
+        "sqlAdminPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Azure SQL administrator password or Key Vault secret reference."
+            }
+        },
+        "blobStorageConnectionString": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Azure Blob Storage connection string for legacy source / staging storage."
+            }
+        },
+        "databricksHost": {
+            "type": "string",
+            "defaultValue": "https://adb-7405610723825637.17.azuredatabricks.net",
+            "metadata": {
+                "description": "Databricks workspace URL."
+            }
+        },
+        "databricksBronzeToSilverJobId": {
+            "type": "string",
+            "defaultValue": "383135890940752",
+            "metadata": {
+                "description": "Databricks workflow Job ID for Bronze-to-Silver curation."
+            }
+        },
+        "databricksSilverToGoldJobId": {
+            "type": "string",
+            "defaultValue": "383135890940753",
+            "metadata": {
+                "description": "Databricks workflow Job ID for Silver-to-Gold dimensional curation."
+            }
+        }
+    },
+    "variables": {
+        "adlsLinkedServiceName": "LS_ADLS_NorthWind_MI",
+        "sqlLinkedServiceName": "LS_AzureSQL_Metadata",
+        "blobLinkedServiceName": "LS_BlobStorage",
+        "defaultTags": {
+            "Project": "NorthWind-Retail",
+            "Environment": "[parameters('environment')]",
+            "ManagedBy": "ARM-Deployment",
+            "DataPlatform": "NWRetail-Lakehouse"
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.DataFactory/factories",
+            "apiVersion": "2018-06-01",
+            "name": "[parameters('factoryName')]",
+            "location": "[parameters('location')]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "tags": "[variables('defaultTags')]",
+            "properties": {
+                "publicNetworkAccess": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/linkedServices",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/', variables('adlsLinkedServiceName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+            ],
+            "properties": {
+                "type": "AzureBlobFS",
+                "description": "Primary ADLS Gen2 Linked Service authenticated via ADF System-Assigned Managed Identity.",
+                "typeProperties": {
+                    "url": "[parameters('adlsStorageAccountUrl')]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/linkedServices",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/', variables('sqlLinkedServiceName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+            ],
+            "properties": {
+                "type": "AzureSqlDatabase",
+                "description": "Azure SQL Database metadata repository for locks, configurations, and pipeline audit metrics.",
+                "typeProperties": {
+                    "connectionString": {
+                        "type": "SecureString",
+                        "value": "[concat('Server=tcp:', parameters('sqlServerName'), ',1433;Initial Catalog=', parameters('sqlDatabaseName'), ';Persist Security Info=False;User ID=', parameters('sqlAdminUserName'), ';Password=', parameters('sqlAdminPassword'), ';MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/linkedServices",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/', variables('blobLinkedServiceName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+            ],
+            "properties": {
+                "type": "AzureBlobStorage",
+                "description": "Blob storage linked service for staging and legacy datasets.",
+                "typeProperties": {
+                    "connectionString": {
+                        "type": "SecureString",
+                        "value": "[parameters('blobStorageConnectionString')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/DS_SQL_Generic')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/linkedServices', parameters('factoryName'), variables('sqlLinkedServiceName'))]"
+            ],
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[variables('sqlLinkedServiceName')]",
+                    "type": "LinkedServiceReference"
+                },
+                "type": "AzureSqlTable",
+                "schema": [
+                    { "name": "ConfigID", "type": "int" },
+                    { "name": "SourceContainer", "type": "varchar" },
+                    { "name": "SourceFolder", "type": "varchar" },
+                    { "name": "TargetContainer", "type": "varchar" },
+                    { "name": "TargetFolder", "type": "varchar" },
+                    { "name": "SourceFormat", "type": "varchar" },
+                    { "name": "TargetFormat", "type": "varchar" },
+                    { "name": "LoadType", "type": "varchar" },
+                    { "name": "IsActive", "type": "bit" }
+                ],
+                "typeProperties": {
+                    "schema": "dbo",
+                    "table": "ADF_Pipeline_Config"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/DS_NW_Raw_CSV')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/linkedServices', parameters('factoryName'), variables('adlsLinkedServiceName'))]"
+            ],
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[variables('adlsLinkedServiceName')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "pContainer": { "type": "string", "defaultValue": "raw" },
+                    "pFolder": { "type": "string", "defaultValue": "sales_transactions" },
+                    "pFileName": { "type": "string", "defaultValue": "sales_transactions.csv" }
+                },
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "fileSystem": { "value": "@dataset().pContainer", "type": "Expression" },
+                        "folderPath": { "value": "@dataset().pFolder", "type": "Expression" },
+                        "fileName": { "value": "@dataset().pFileName", "type": "Expression" }
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                }
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/DS_NW_Bronze_CSV')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/linkedServices', parameters('factoryName'), variables('adlsLinkedServiceName'))]"
+            ],
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[variables('adlsLinkedServiceName')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "pFolder": { "type": "string", "defaultValue": "sales_transactions" },
+                    "pFileName": { "type": "string", "defaultValue": "sales_transactions.csv" }
+                },
+                "type": "DelimitedText",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "fileSystem": "bronze",
+                        "folderPath": { "value": "@dataset().pFolder", "type": "Expression" },
+                        "fileName": { "value": "@dataset().pFileName", "type": "Expression" }
+                    },
+                    "columnDelimiter": ",",
+                    "escapeChar": "\\",
+                    "firstRowAsHeader": true,
+                    "quoteChar": "\""
+                }
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/datasets",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/DS_NW_Raw_Binary')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/linkedServices', parameters('factoryName'), variables('adlsLinkedServiceName'))]"
+            ],
+            "properties": {
+                "linkedServiceName": {
+                    "referenceName": "[variables('adlsLinkedServiceName')]",
+                    "type": "LinkedServiceReference"
+                },
+                "parameters": {
+                    "pContainer": { "type": "string", "defaultValue": "raw" },
+                    "pFolder": { "type": "string", "defaultValue": "sales_transactions" }
+                },
+                "type": "Binary",
+                "typeProperties": {
+                    "location": {
+                        "type": "AzureBlobFSLocation",
+                        "fileSystem": { "value": "@dataset().pContainer", "type": "Expression" },
+                        "folderPath": { "value": "@dataset().pFolder", "type": "Expression" }
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/PL_Process_Entity_Files')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/datasets', parameters('factoryName'), 'DS_NW_Raw_Binary')]",
+                "[resourceId('Microsoft.DataFactory/factories/datasets', parameters('factoryName'), 'DS_NW_Raw_CSV')]",
+                "[resourceId('Microsoft.DataFactory/factories/datasets', parameters('factoryName'), 'DS_NW_Bronze_CSV')]"
+            ],
+            "properties": {
+                "parameters": {
+                    "pConfigId": { "type": "int" },
+                    "pSourceContainer": { "type": "string" },
+                    "pSourceFolder": { "type": "string" },
+                    "pDestinationContainer": { "type": "string" },
+                    "pDestinationFolder": { "type": "string" },
+                    "pFilePattern": { "type": "string", "defaultValue": "*.csv" }
+                },
+                "activities": [
+                    {
+                        "name": "CP_CopyRawToBronze",
+                        "type": "Copy",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.01:00:00",
+                            "retry": 2,
+                            "retryIntervalInSeconds": 30,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "inputs": [
+                            {
+                                "referenceName": "DS_NW_Raw_CSV",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "pContainer": { "value": "@pipeline().parameters.pSourceContainer", "type": "Expression" },
+                                    "pFolder": { "value": "@pipeline().parameters.pSourceFolder", "type": "Expression" },
+                                    "pFileName": { "value": "@pipeline().parameters.pFilePattern", "type": "Expression" }
+                                }
+                            }
+                        ],
+                        "outputs": [
+                            {
+                                "referenceName": "DS_NW_Bronze_CSV",
+                                "type": "DatasetReference",
+                                "parameters": {
+                                    "pFolder": { "value": "@pipeline().parameters.pDestinationFolder", "type": "Expression" },
+                                    "pFileName": { "value": "@pipeline().parameters.pFilePattern", "type": "Expression" }
+                                }
+                            }
+                        ],
+                        "typeProperties": {
+                            "source": { "type": "DelimitedTextSource" },
+                            "sink": { "type": "DelimitedTextSink" }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/PL_Ingest_Raw_To_Bronze')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/datasets', parameters('factoryName'), 'DS_SQL_Generic')]",
+                "[resourceId('Microsoft.DataFactory/factories/pipelines', parameters('factoryName'), 'PL_Process_Entity_Files')]"
+            ],
+            "properties": {
+                "activities": [
+                    {
+                        "name": "SP_LockPipeline",
+                        "type": "SqlServerStoredProcedure",
+                        "dependsOn": [],
+                        "linkedServiceName": {
+                            "referenceName": "[variables('sqlLinkedServiceName')]",
+                            "type": "LinkedServiceReference"
+                        },
+                        "typeProperties": {
+                            "storedProcedureName": "[dbo].[sp_LockPipeline]",
+                            "storedProcedureParameters": {
+                                "PipelineName": { "value": "@pipeline().Pipeline", "type": "String" },
+                                "PipelineRunId": { "value": "@pipeline().RunId", "type": "String" },
+                                "TriggeredBy": { "value": "@pipeline().TriggerTime", "type": "String" }
+                            }
+                        }
+                    },
+                    {
+                        "name": "LK_GetActiveEntities",
+                        "type": "Lookup",
+                        "dependsOn": [
+                            { "activity": "SP_LockPipeline", "dependencyConditions": [ "Succeeded" ] }
+                        ],
+                        "dataset": {
+                            "referenceName": "DS_SQL_Generic",
+                            "type": "DatasetReference"
+                        },
+                        "typeProperties": {
+                            "source": {
+                                "type": "AzureSqlSource",
+                                "sqlReaderQuery": "SELECT ConfigID AS ConfigId, SourceContainer, SourceFolder, TargetContainer AS DestinationContainer, TargetFolder AS DestinationFolder, '*.csv' AS FilePattern FROM dbo.ADF_Pipeline_Config WHERE IsActive = 1 ORDER BY ConfigID;"
+                            },
+                            "firstRowOnly": false
+                        }
+                    },
+                    {
+                        "name": "FE_ProcessEntities",
+                        "type": "ForEach",
+                        "dependsOn": [
+                            { "activity": "LK_GetActiveEntities", "dependencyConditions": [ "Succeeded" ] }
+                        ],
+                        "typeProperties": {
+                            "items": { "value": "@activity('LK_GetActiveEntities').output.value", "type": "Expression" },
+                            "isSequential": false,
+                            "activities": [
+                                {
+                                    "name": "EP_ProcessEntity",
+                                    "type": "ExecutePipeline",
+                                    "typeProperties": {
+                                        "pipeline": {
+                                            "referenceName": "PL_Process_Entity_Files",
+                                            "type": "PipelineReference"
+                                        },
+                                        "waitOnCompletion": true,
+                                        "parameters": {
+                                            "pConfigId": { "value": "@item().ConfigId", "type": "Expression" },
+                                            "pSourceContainer": { "value": "@item().SourceContainer", "type": "Expression" },
+                                            "pSourceFolder": { "value": "@item().SourceFolder", "type": "Expression" },
+                                            "pDestinationContainer": { "value": "@item().DestinationContainer", "type": "Expression" },
+                                            "pDestinationFolder": { "value": "@item().DestinationFolder", "type": "Expression" },
+                                            "pFilePattern": { "value": "@item().FilePattern", "type": "Expression" }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "SP_UnlockPipeline",
+                        "type": "SqlServerStoredProcedure",
+                        "dependsOn": [
+                            { "activity": "FE_ProcessEntities", "dependencyConditions": [ "Completed" ] }
+                        ],
+                        "linkedServiceName": {
+                            "referenceName": "[variables('sqlLinkedServiceName')]",
+                            "type": "LinkedServiceReference"
+                        },
+                        "typeProperties": {
+                            "storedProcedureName": "[dbo].[sp_UnlockPipeline]",
+                            "storedProcedureParameters": {
+                                "PipelineName": { "value": "@pipeline().Pipeline", "type": "String" },
+                                "PipelineRunId": { "value": "@pipeline().RunId", "type": "String" },
+                                "Status": { "value": "@if(equals(activity('FE_ProcessEntities').status, 'Succeeded'), 'Success', 'Failed')", "type": "String" }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/PL_BronzeToSilver')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/linkedServices', parameters('factoryName'), variables('sqlLinkedServiceName'))]"
+            ],
+            "properties": {
+                "parameters": {
+                    "databricksHost": { "type": "string", "defaultValue": "[parameters('databricksHost')]" },
+                    "silverJobId": { "type": "string", "defaultValue": "[parameters('databricksBronzeToSilverJobId')]" },
+                    "authMode": { "type": "string", "defaultValue": "auto" }
+                },
+                "variables": {
+                    "runId": { "type": "String", "defaultValue": "" },
+                    "lifeCycle": { "type": "String", "defaultValue": "PENDING" },
+                    "resultState": { "type": "String", "defaultValue": "" },
+                    "rawOutput": { "type": "String", "defaultValue": "{}" },
+                    "resultStatus": { "type": "String", "defaultValue": "FAILED" },
+                    "rowsWritten": { "type": "Integer", "defaultValue": 0 },
+                    "rowsFailed": { "type": "Integer", "defaultValue": 0 },
+                    "errorMsg": { "type": "String", "defaultValue": "Silver pipeline produced no exit payload." },
+                    "pipelineStatus": { "type": "String", "defaultValue": "Failed" }
+                },
+                "activities": [
+                    {
+                        "name": "SP_LockPipeline",
+                        "type": "SqlServerStoredProcedure",
+                        "linkedServiceName": { "referenceName": "[variables('sqlLinkedServiceName')]", "type": "LinkedServiceReference" },
+                        "typeProperties": {
+                            "storedProcedureName": "[dbo].[sp_LockPipeline]",
+                            "storedProcedureParameters": {
+                                "PipelineName": { "value": "@pipeline().Pipeline", "type": "String" },
+                                "PipelineRunId": { "value": "@pipeline().RunId", "type": "String" },
+                                "TriggeredBy": { "value": "@pipeline().TriggerTime", "type": "String" }
+                            }
+                        }
+                    },
+                    {
+                        "name": "WB_Trigger_Run",
+                        "type": "WebActivity",
+                        "dependsOn": [ { "activity": "SP_LockPipeline", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "method": "POST",
+                            "headers": { "Content-Type": "application/json" },
+                            "url": { "value": "@concat(pipeline().parameters.databricksHost, '/api/2.1/jobs/run-now')", "type": "Expression" },
+                            "body": { "value": "@json(concat('{\"job_id\":', pipeline().parameters.silverJobId, ',\"notebook_params\":{\"auth_mode\":\"', pipeline().parameters.authMode, '\",\"run_id\":\"', pipeline().RunId, '\"}}'))", "type": "Expression" },
+                            "authentication": { "type": "MSI", "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d" }
+                        }
+                    },
+                    {
+                        "name": "ST_SetRunId",
+                        "type": "SetVariable",
+                        "dependsOn": [ { "activity": "WB_Trigger_Run", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "variableName": "runId",
+                            "value": { "value": "@string(activity('WB_Trigger_Run').output.run_id)", "type": "Expression" }
+                        }
+                    },
+                    {
+                        "name": "UNTIL_RunComplete",
+                        "type": "Until",
+                        "dependsOn": [ { "activity": "ST_SetRunId", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "expression": { "value": "@or(or(equals(variables('lifeCycle'), 'TERMINATED'), equals(variables('lifeCycle'), 'SKIPPED')), equals(variables('lifeCycle'), 'INTERNAL_ERROR'))", "type": "Expression" },
+                            "timeout": "0.02:00:00",
+                            "activities": [
+                                { "name": "WT_Poll", "type": "Wait", "typeProperties": { "waitTimeInSeconds": 30 } },
+                                {
+                                    "name": "WB_Get_Run",
+                                    "type": "WebActivity",
+                                    "dependsOn": [ { "activity": "WT_Poll", "dependencyConditions": [ "Succeeded" ] } ],
+                                    "typeProperties": {
+                                        "method": "GET",
+                                        "url": { "value": "@concat(pipeline().parameters.databricksHost, '/api/2.1/jobs/runs/get?run_id=', variables('runId'))", "type": "Expression" },
+                                        "authentication": { "type": "MSI", "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d" }
+                                    }
+                                },
+                                {
+                                    "name": "ST_SetLifeCycle",
+                                    "type": "SetVariable",
+                                    "dependsOn": [ { "activity": "WB_Get_Run", "dependencyConditions": [ "Succeeded" ] } ],
+                                    "typeProperties": {
+                                        "variableName": "lifeCycle",
+                                        "value": { "value": "@string(activity('WB_Get_Run').output.state.life_cycle_state)", "type": "Expression" }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "ST_SetResultState",
+                        "type": "SetVariable",
+                        "dependsOn": [ { "activity": "UNTIL_RunComplete", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "variableName": "resultState",
+                            "value": { "value": "@string(activity('WB_Get_Run').output.state.result_state)", "type": "Expression" }
+                        }
+                    },
+                    {
+                        "name": "IF_SilverSucceeded",
+                        "type": "IfCondition",
+                        "dependsOn": [ { "activity": "ST_SetResultState", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "expression": { "value": "@equals(variables('resultState'), 'SUCCESS')", "type": "Expression" },
+                            "ifTrueActivities": [
+                                {
+                                    "name": "ST_MarkSucceeded",
+                                    "type": "SetVariable",
+                                    "typeProperties": { "variableName": "pipelineStatus", "value": "Success" }
+                                }
+                            ],
+                            "ifFalseActivities": [
+                                {
+                                    "name": "ST_MarkFailed",
+                                    "type": "SetVariable",
+                                    "typeProperties": { "variableName": "pipelineStatus", "value": "Failed" }
+                                },
+                                {
+                                    "name": "FAIL_SilverPipeline",
+                                    "type": "Fail",
+                                    "dependsOn": [ { "activity": "ST_MarkFailed", "dependencyConditions": [ "Succeeded" ] } ],
+                                    "typeProperties": {
+                                        "message": { "value": "@variables('errorMsg')", "type": "Expression" },
+                                        "errorCode": "500"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "SP_UnlockPipeline",
+                        "type": "SqlServerStoredProcedure",
+                        "dependsOn": [ { "activity": "IF_SilverSucceeded", "dependencyConditions": [ "Completed" ] } ],
+                        "linkedServiceName": { "referenceName": "[variables('sqlLinkedServiceName')]", "type": "LinkedServiceReference" },
+                        "typeProperties": {
+                            "storedProcedureName": "[dbo].[sp_UnlockPipeline]",
+                            "storedProcedureParameters": {
+                                "PipelineName": { "value": "@pipeline().Pipeline", "type": "String" },
+                                "PipelineRunId": { "value": "@pipeline().RunId", "type": "String" },
+                                "Status": { "value": "@variables('pipelineStatus')", "type": "String" },
+                                "RowsProcessed": { "value": "@variables('rowsWritten')", "type": "Int" },
+                                "RowsFailed": { "value": "@variables('rowsFailed')", "type": "Int" },
+                                "ErrorMessage": { "value": "@variables('errorMsg')", "type": "String" }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/PL_SilverToGold')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/linkedServices', parameters('factoryName'), variables('sqlLinkedServiceName'))]"
+            ],
+            "properties": {
+                "parameters": {
+                    "databricksHost": { "type": "string", "defaultValue": "[parameters('databricksHost')]" },
+                    "goldJobId": { "type": "string", "defaultValue": "[parameters('databricksSilverToGoldJobId')]" },
+                    "authMode": { "type": "string", "defaultValue": "auto" }
+                },
+                "variables": {
+                    "runId": { "type": "String", "defaultValue": "" },
+                    "lifeCycle": { "type": "String", "defaultValue": "PENDING" },
+                    "resultState": { "type": "String", "defaultValue": "" },
+                    "rawOutput": { "type": "String", "defaultValue": "{}" },
+                    "resultStatus": { "type": "String", "defaultValue": "FAILED" },
+                    "rowsWritten": { "type": "Integer", "defaultValue": 0 },
+                    "rowsFailed": { "type": "Integer", "defaultValue": 0 },
+                    "errorMsg": { "type": "String", "defaultValue": "Gold pipeline produced no result payload." },
+                    "pipelineStatus": { "type": "String", "defaultValue": "Failed" }
+                },
+                "activities": [
+                    {
+                        "name": "SP_LockPipeline",
+                        "type": "SqlServerStoredProcedure",
+                        "linkedServiceName": { "referenceName": "[variables('sqlLinkedServiceName')]", "type": "LinkedServiceReference" },
+                        "typeProperties": {
+                            "storedProcedureName": "[dbo].[sp_LockPipeline]",
+                            "storedProcedureParameters": {
+                                "PipelineName": { "value": "@pipeline().Pipeline", "type": "String" },
+                                "PipelineRunId": { "value": "@pipeline().RunId", "type": "String" },
+                                "TriggeredBy": { "value": "@pipeline().TriggerTime", "type": "String" }
+                            }
+                        }
+                    },
+                    {
+                        "name": "WB_Trigger_Run",
+                        "type": "WebActivity",
+                        "dependsOn": [ { "activity": "SP_LockPipeline", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "method": "POST",
+                            "headers": { "Content-Type": "application/json" },
+                            "url": { "value": "@concat(pipeline().parameters.databricksHost, '/api/2.1/jobs/run-now')", "type": "Expression" },
+                            "body": { "value": "@json(concat('{\"job_id\":', pipeline().parameters.goldJobId, ',\"notebook_params\":{\"auth_mode\":\"', pipeline().parameters.authMode, '\",\"run_id\":\"', pipeline().RunId, '\"}}'))", "type": "Expression" },
+                            "authentication": { "type": "MSI", "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d" }
+                        }
+                    },
+                    {
+                        "name": "ST_SetRunId",
+                        "type": "SetVariable",
+                        "dependsOn": [ { "activity": "WB_Trigger_Run", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "variableName": "runId",
+                            "value": { "value": "@string(activity('WB_Trigger_Run').output.run_id)", "type": "Expression" }
+                        }
+                    },
+                    {
+                        "name": "UNTIL_RunComplete",
+                        "type": "Until",
+                        "dependsOn": [ { "activity": "ST_SetRunId", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "expression": { "value": "@or(or(equals(variables('lifeCycle'), 'TERMINATED'), equals(variables('lifeCycle'), 'SKIPPED')), equals(variables('lifeCycle'), 'INTERNAL_ERROR'))", "type": "Expression" },
+                            "timeout": "0.02:00:00",
+                            "activities": [
+                                { "name": "WT_Poll", "type": "Wait", "typeProperties": { "waitTimeInSeconds": 30 } },
+                                {
+                                    "name": "WB_Get_Run",
+                                    "type": "WebActivity",
+                                    "dependsOn": [ { "activity": "WT_Poll", "dependencyConditions": [ "Succeeded" ] } ],
+                                    "typeProperties": {
+                                        "method": "GET",
+                                        "url": { "value": "@concat(pipeline().parameters.databricksHost, '/api/2.1/jobs/runs/get?run_id=', variables('runId'))", "type": "Expression" },
+                                        "authentication": { "type": "MSI", "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d" }
+                                    }
+                                },
+                                {
+                                    "name": "ST_SetLifeCycle",
+                                    "type": "SetVariable",
+                                    "dependsOn": [ { "activity": "WB_Get_Run", "dependencyConditions": [ "Succeeded" ] } ],
+                                    "typeProperties": {
+                                        "variableName": "lifeCycle",
+                                        "value": { "value": "@string(activity('WB_Get_Run').output.state.life_cycle_state)", "type": "Expression" }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "ST_SetResultState",
+                        "type": "SetVariable",
+                        "dependsOn": [ { "activity": "UNTIL_RunComplete", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "variableName": "resultState",
+                            "value": { "value": "@string(activity('WB_Get_Run').output.state.result_state)", "type": "Expression" }
+                        }
+                    },
+                    {
+                        "name": "IF_GoldSucceeded",
+                        "type": "IfCondition",
+                        "dependsOn": [ { "activity": "ST_SetResultState", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "expression": { "value": "@equals(variables('resultState'), 'SUCCESS')", "type": "Expression" },
+                            "ifTrueActivities": [
+                                {
+                                    "name": "ST_MarkSucceeded",
+                                    "type": "SetVariable",
+                                    "typeProperties": { "variableName": "pipelineStatus", "value": "Success" }
+                                }
+                            ],
+                            "ifFalseActivities": [
+                                {
+                                    "name": "ST_MarkFailed",
+                                    "type": "SetVariable",
+                                    "typeProperties": { "variableName": "pipelineStatus", "value": "Failed" }
+                                },
+                                {
+                                    "name": "FAIL_GoldPipeline",
+                                    "type": "Fail",
+                                    "dependsOn": [ { "activity": "ST_MarkFailed", "dependencyConditions": [ "Succeeded" ] } ],
+                                    "typeProperties": {
+                                        "message": { "value": "@variables('errorMsg')", "type": "Expression" },
+                                        "errorCode": "500"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "SP_UnlockPipeline",
+                        "type": "SqlServerStoredProcedure",
+                        "dependsOn": [ { "activity": "IF_GoldSucceeded", "dependencyConditions": [ "Completed" ] } ],
+                        "linkedServiceName": { "referenceName": "[variables('sqlLinkedServiceName')]", "type": "LinkedServiceReference" },
+                        "typeProperties": {
+                            "storedProcedureName": "[dbo].[sp_UnlockPipeline]",
+                            "storedProcedureParameters": {
+                                "PipelineName": { "value": "@pipeline().Pipeline", "type": "String" },
+                                "PipelineRunId": { "value": "@pipeline().RunId", "type": "String" },
+                                "Status": { "value": "@variables('pipelineStatus')", "type": "String" },
+                                "RowsProcessed": { "value": "@variables('rowsWritten')", "type": "Int" },
+                                "RowsFailed": { "value": "@variables('rowsFailed')", "type": "Int" },
+                                "ErrorMessage": { "value": "@variables('errorMsg')", "type": "String" }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/pipelines",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/PL_Master_Orchestrator')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/pipelines', parameters('factoryName'), 'PL_Ingest_Raw_To_Bronze')]",
+                "[resourceId('Microsoft.DataFactory/factories/pipelines', parameters('factoryName'), 'PL_BronzeToSilver')]",
+                "[resourceId('Microsoft.DataFactory/factories/pipelines', parameters('factoryName'), 'PL_SilverToGold')]"
+            ],
+            "properties": {
+                "parameters": {
+                    "databricksHost": { "type": "string", "defaultValue": "[parameters('databricksHost')]" },
+                    "goldJobId": { "type": "string", "defaultValue": "[parameters('databricksSilverToGoldJobId')]" },
+                    "authMode": { "type": "string", "defaultValue": "auto" }
+                },
+                "activities": [
+                    {
+                        "name": "EP_Raw_To_Bronze",
+                        "type": "ExecutePipeline",
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "PL_Ingest_Raw_To_Bronze",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true
+                        }
+                    },
+                    {
+                        "name": "EP_Bronze_To_Silver",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [ { "activity": "EP_Raw_To_Bronze", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "PL_BronzeToSilver",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true
+                        }
+                    },
+                    {
+                        "name": "EP_Silver_To_Gold",
+                        "type": "ExecutePipeline",
+                        "dependsOn": [ { "activity": "EP_Bronze_To_Silver", "dependencyConditions": [ "Succeeded" ] } ],
+                        "typeProperties": {
+                            "pipeline": {
+                                "referenceName": "PL_SilverToGold",
+                                "type": "PipelineReference"
+                            },
+                            "waitOnCompletion": true,
+                            "parameters": {
+                                "databricksHost": { "value": "@pipeline().parameters.databricksHost", "type": "Expression" },
+                                "goldJobId": { "value": "@pipeline().parameters.goldJobId", "type": "Expression" },
+                                "authMode": { "value": "@pipeline().parameters.authMode", "type": "Expression" }
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.DataFactory/factories/triggers",
+            "apiVersion": "2018-06-01",
+            "name": "[concat(parameters('factoryName'), '/TR_Daily_NorthWind_Orchestrator')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.DataFactory/factories/pipelines', parameters('factoryName'), 'PL_Master_Orchestrator')]"
+            ],
+            "properties": {
+                "description": "Daily scheduled trigger that kicks off the full NorthWind Medallion pipeline.",
+                "type": "ScheduleTrigger",
+                "typeProperties": {
+                    "recurrence": {
+                        "frequency": "Day",
+                        "interval": 1,
+                        "startTime": "2026-01-01T02:00:00Z",
+                        "timeZone": "UTC"
+                    }
+                },
+                "pipelines": [
+                    {
+                        "pipelineReference": {
+                            "referenceName": "PL_Master_Orchestrator",
+                            "type": "PipelineReference"
+                        },
+                        "parameters": {
+                            "databricksHost": "[parameters('databricksHost')]",
+                            "goldJobId": "[parameters('databricksSilverToGoldJobId')]",
+                            "authMode": "auto"
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "outputs": {
+        "factoryId": {
+            "type": "string",
+            "value": "[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"
+        },
+        "factoryPrincipalId": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.DataFactory/factories', parameters('factoryName')), '2018-06-01', 'Full').identity.principalId]"
+        }
+    }
+}

@@ -1,0 +1,104 @@
+{
+    "name": "PL_Master_Orchestrator",
+    "type": "Microsoft.DataFactory/factories/pipelines",
+    "properties": {
+        "description": "End-to-end Medallion master orchestration pipeline. Triggers Raw -> Bronze ingestion, followed by Bronze -> Silver curation, and finally Silver -> Gold dimensional modeling.",
+        "activities": [
+            {
+                "name": "EP_Raw_To_Bronze",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "userProperties": [],
+                "policy": {
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "PL_Ingest_Raw_To_Bronze",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true
+                }
+            },
+            {
+                "name": "EP_Bronze_To_Silver",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "EP_Raw_To_Bronze",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "policy": {
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "PL_BronzeToSilver",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true
+                }
+            },
+            {
+                "name": "EP_Silver_To_Gold",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "EP_Bronze_To_Silver",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "policy": {
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "PL_SilverToGold",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "databricksHost": {
+                            "value": "@pipeline().parameters.databricksHost",
+                            "type": "Expression"
+                        },
+                        "goldJobId": {
+                            "value": "@pipeline().parameters.goldJobId",
+                            "type": "Expression"
+                        },
+                        "authMode": {
+                            "value": "@pipeline().parameters.authMode",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            }
+        ],
+        "parameters": {
+            "databricksHost": {
+                "type": "string",
+                "defaultValue": "https://adb-7405610723825637.17.azuredatabricks.net"
+            },
+            "goldJobId": {
+                "type": "string",
+                "defaultValue": "383135890940753"
+            },
+            "authMode": {
+                "type": "string",
+                "defaultValue": "auto"
+            }
+        },
+        "annotations": [
+            "northwind",
+            "orchestrator",
+            "medallion"
+        ]
+    }
+}

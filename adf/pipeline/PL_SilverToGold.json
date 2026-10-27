@@ -1,0 +1,500 @@
+{
+    "name": "PL_SilverToGold",
+    "type": "Microsoft.DataFactory/factories/pipelines",
+    "properties": {
+        "description": "Silver -> Gold curation & dimensional modeling orchestration. Acquires SQL metadata lock, triggers Databricks job NB_Gold_Silver_To_Gold, polls until completion, parses table metric summary, and releases audit lock with metrics.",
+        "activities": [
+            {
+                "name": "SP_LockPipeline",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_Metadata",
+                    "type": "LinkedServiceReference"
+                },
+                "storedProcedureName": "[dbo].[sp_LockPipeline]",
+                "storedProcedureParameters": {
+                    "PipelineName": {
+                        "value": "@pipeline().Pipeline",
+                        "type": "String"
+                    },
+                    "PipelineRunId": {
+                        "value": "@pipeline().RunId",
+                        "type": "String"
+                    },
+                    "TriggeredBy": {
+                        "value": "@pipeline().TriggerTime",
+                        "type": "String"
+                    }
+                }
+            },
+            {
+                "name": "WB_Trigger_Run",
+                "type": "WebActivity",
+                "dependsOn": [
+                    {
+                        "activity": "SP_LockPipeline",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.00:10:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "method": "POST",
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "url": {
+                    "value": "@concat(pipeline().parameters.databricksHost, '/api/2.1/jobs/run-now')",
+                    "type": "Expression"
+                },
+                "body": {
+                    "value": "@json(concat('{\"job_id\":', pipeline().parameters.goldJobId, ',\"notebook_params\":{\"auth_mode\":\"', pipeline().parameters.authMode, '\",\"run_id\":\"', pipeline().RunId, '\"}}'))",
+                    "type": "Expression"
+                },
+                "authentication": {
+                    "type": "MSI",
+                    "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+                }
+            },
+            {
+                "name": "ST_SetRunId",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "WB_Trigger_Run",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "variableName": "runId",
+                "value": {
+                    "value": "@string(activity('WB_Trigger_Run').output.run_id)",
+                    "type": "Expression"
+                }
+            },
+            {
+                "name": "UNTIL_RunComplete",
+                "type": "Until",
+                "dependsOn": [
+                    {
+                        "activity": "ST_SetRunId",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "expression": {
+                    "value": "@or(or(equals(variables('lifeCycle'), 'TERMINATED'), equals(variables('lifeCycle'), 'SKIPPED')), equals(variables('lifeCycle'), 'INTERNAL_ERROR'))",
+                    "type": "Expression"
+                },
+                "timeout": "0.02:00:00",
+                "activities": [
+                    {
+                        "name": "WT_Poll",
+                        "type": "Wait",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "waitTimeInSeconds": 30
+                    },
+                    {
+                        "name": "WB_Get_Run",
+                        "type": "WebActivity",
+                        "dependsOn": [
+                            {
+                                "activity": "WT_Poll",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "policy": {
+                            "timeout": "0.00:10:00",
+                            "retry": 3,
+                            "retryIntervalInSeconds": 15,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "method": "GET",
+                        "url": {
+                            "value": "@concat(pipeline().parameters.databricksHost, '/api/2.1/jobs/runs/get?run_id=', variables('runId'))",
+                            "type": "Expression"
+                        },
+                        "authentication": {
+                            "type": "MSI",
+                            "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+                        }
+                    },
+                    {
+                        "name": "ST_SetLifeCycle",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "WB_Get_Run",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "variableName": "lifeCycle",
+                        "value": {
+                            "value": "@string(activity('WB_Get_Run').output.state.life_cycle_state)",
+                            "type": "Expression"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "ST_SetResultState",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "UNTIL_RunComplete",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "variableName": "resultState",
+                "value": {
+                    "value": "@string(activity('WB_Get_Run').output.state.result_state)",
+                    "type": "Expression"
+                }
+            },
+            {
+                "name": "IF_RunSucceeded",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "ST_SetResultState",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "expression": {
+                    "value": "@equals(variables('resultState'), 'SUCCESS')",
+                    "type": "Expression"
+                },
+                "ifTrueActivities": [
+                    {
+                        "name": "WB_Get_Output",
+                        "type": "WebActivity",
+                        "dependsOn": [],
+                        "policy": {
+                            "timeout": "0.00:10:00",
+                            "retry": 2,
+                            "retryIntervalInSeconds": 15,
+                            "secureOutput": false,
+                            "secureInput": false
+                        },
+                        "userProperties": [],
+                        "method": "GET",
+                        "url": {
+                            "value": "@concat(pipeline().parameters.databricksHost, '/api/2.1/jobs/runs/get-output?run_id=', activity('WB_Get_Run').output.tasks[0].run_id)",
+                            "type": "Expression"
+                        },
+                        "authentication": {
+                            "type": "MSI",
+                            "resource": "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+                        }
+                    },
+                    {
+                        "name": "ST_SetRawOutput",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "WB_Get_Output",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "variableName": "rawOutput",
+                        "value": {
+                            "value": "@coalesce(activity('WB_Get_Output').output.notebook_output.result, '{}')",
+                            "type": "Expression"
+                        }
+                    },
+                    {
+                        "name": "ST_SetResultStatus",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "ST_SetRawOutput",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "variableName": "resultStatus",
+                        "value": {
+                            "value": "@if(equals(variables('rawOutput'), '{}'), 'FAILED', coalesce(json(variables('rawOutput')).status, 'FAILED'))",
+                            "type": "Expression"
+                        }
+                    },
+                    {
+                        "name": "ST_SetRowsWritten",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "ST_SetResultStatus",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "variableName": "rowsWritten",
+                        "value": {
+                            "value": "@if(equals(variables('rawOutput'), '{}'), 0, int(coalesce(json(variables('rawOutput')).tables.fact_sales, 0)))",
+                            "type": "Expression"
+                        }
+                    },
+                    {
+                        "name": "ST_SetRowsFailed",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "ST_SetRowsWritten",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "variableName": "rowsFailed",
+                        "value": {
+                            "value": "@if(equals(variables('resultStatus'), 'SUCCESS'), 0, 1)",
+                            "type": "Expression"
+                        }
+                    },
+                    {
+                        "name": "ST_SetErrorMsg",
+                        "type": "SetVariable",
+                        "dependsOn": [
+                            {
+                                "activity": "ST_SetRowsFailed",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "variableName": "errorMsg",
+                        "value": {
+                            "value": "@if(equals(variables('rawOutput'), '{}'), 'Gold notebook produced no exit payload.', coalesce(json(variables('rawOutput')).error_summary, ''))",
+                            "type": "Expression"
+                        }
+                    }
+                ],
+                "ifFalseActivities": [
+                    {
+                        "name": "ST_SetRunFailureMsg",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "variableName": "errorMsg",
+                        "value": {
+                            "value": "@concat('Databricks Gold run did not succeed (life_cycle_state=', variables('lifeCycle'), ', result_state=', variables('resultState'), '); the notebook never reached dbutils.notebook.exit.')",
+                            "type": "Expression"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "IF_GoldSucceeded",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "IF_RunSucceeded",
+                        "dependencyConditions": [
+                            "Completed"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "expression": {
+                    "value": "@equals(variables('resultStatus'), 'SUCCESS')",
+                    "type": "Expression"
+                },
+                "ifTrueActivities": [
+                    {
+                        "name": "ST_MarkSucceeded",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "variableName": "pipelineStatus",
+                        "value": {
+                            "value": "Success",
+                            "type": "Expression"
+                        }
+                    }
+                ],
+                "ifFalseActivities": [
+                    {
+                        "name": "ST_MarkFailed",
+                        "type": "SetVariable",
+                        "dependsOn": [],
+                        "userProperties": [],
+                        "variableName": "pipelineStatus",
+                        "value": {
+                            "value": "Failed",
+                            "type": "Expression"
+                        }
+                    },
+                    {
+                        "name": "FAIL_GoldPipeline",
+                        "type": "Fail",
+                        "dependsOn": [
+                            {
+                                "activity": "ST_MarkFailed",
+                                "dependencyConditions": [
+                                    "Succeeded"
+                                ]
+                            }
+                        ],
+                        "userProperties": [],
+                        "message": {
+                            "value": "@variables('errorMsg')",
+                            "type": "Expression"
+                        },
+                        "errorCode": "500"
+                    }
+                ]
+            },
+            {
+                "name": "SP_UnlockPipeline",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "IF_GoldSucceeded",
+                        "dependencyConditions": [
+                            "Completed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.01:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "linkedServiceName": {
+                    "referenceName": "LS_AzureSQL_Metadata",
+                    "type": "LinkedServiceReference"
+                },
+                "storedProcedureName": "[dbo].[sp_UnlockPipeline]",
+                "storedProcedureParameters": {
+                    "PipelineName": {
+                        "value": "@pipeline().Pipeline",
+                        "type": "String"
+                    },
+                    "PipelineRunId": {
+                        "value": "@pipeline().RunId",
+                        "type": "String"
+                    },
+                    "Status": {
+                        "value": "@variables('pipelineStatus')",
+                        "type": "String"
+                    },
+                    "RowsProcessed": {
+                        "value": "@variables('rowsWritten')",
+                        "type": "Int"
+                    },
+                    "RowsFailed": {
+                        "value": "@variables('rowsFailed')",
+                        "type": "Int"
+                    },
+                    "ErrorMessage": {
+                        "value": "@variables('errorMsg')",
+                        "type": "String"
+                    }
+                }
+            }
+        ],
+        "parameters": {
+            "databricksHost": {
+                "type": "string",
+                "defaultValue": "https://adb-7405610723825637.17.azuredatabricks.net"
+            },
+            "goldJobId": {
+                "type": "string",
+                "defaultValue": "383135890940753"
+            },
+            "authMode": {
+                "type": "string",
+                "defaultValue": "auto"
+            }
+        },
+        "variables": {
+            "runId": {
+                "type": "String",
+                "defaultValue": ""
+            },
+            "lifeCycle": {
+                "type": "String",
+                "defaultValue": "PENDING"
+            },
+            "resultState": {
+                "type": "String",
+                "defaultValue": ""
+            },
+            "rawOutput": {
+                "type": "String",
+                "defaultValue": "{}"
+            },
+            "resultStatus": {
+                "type": "String",
+                "defaultValue": "FAILED"
+            },
+            "rowsWritten": {
+                "type": "Integer",
+                "defaultValue": 0
+            },
+            "rowsFailed": {
+                "type": "Integer",
+                "defaultValue": 0
+            },
+            "errorMsg": {
+                "type": "String",
+                "defaultValue": "Gold pipeline produced no result payload; inspect the Data Factory activity error."
+            },
+            "pipelineStatus": {
+                "type": "String",
+                "defaultValue": "Failed"
+            }
+        },
+        "annotations": [
+            "northwind",
+            "gold",
+            "databricks"
+        ]
+    }
+}
