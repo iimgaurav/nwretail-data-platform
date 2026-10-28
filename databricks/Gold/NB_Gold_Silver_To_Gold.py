@@ -25,9 +25,44 @@ dbutils.widgets.text("batch_id", "")
 # COMMAND ----------
 
 import json
+import logging
+import sys
 from datetime import datetime, date, timedelta
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
+
+class DatabricksLogFormatter(logging.Formatter):
+    """
+    Production log formatter for Databricks / Azure Monitor.
+    Emits structured, human-readable and machine-parseable log lines:
+    ISO-Timestamp [LEVEL] [logger] [run_id] message
+    """
+    def __init__(self, run_id: str = ""):
+        super().__init__()
+        self.run_id = run_id
+
+    def format(self, record):
+        ts = self.formatTime(record, "%Y-%m-%dT%H:%M:%S")
+        ctx = f" [run_id={self.run_id}]" if self.run_id else ""
+        base = f"{ts} [{record.levelname:^7}] [{record.name}]{ctx} {record.getMessage()}"
+        if record.exc_info:
+            base += "\n" + self.formatException(record.exc_info)
+        return base
+
+def get_notebook_logger(name: str, run_id: str = "") -> logging.Logger:
+    """
+    Creates or configures a production-grade logger attached to sys.stdout.
+    Avoids duplicate handlers across Databricks notebook cell re-runs.
+    """
+    _logger = logging.getLogger(name)
+    _logger.setLevel(logging.INFO)
+    _logger.handlers.clear()
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    handler.setFormatter(DatabricksLogFormatter(run_id=run_id))
+    _logger.addHandler(handler)
+    _logger.propagate = False
+    return _logger
 
 CATALOG = CATALOG
 SILVER = f"{CATALOG}.silver"
@@ -38,8 +73,8 @@ run_id = _arg("run_id") or str(uuid.uuid4())
 batch_id = _arg("batch_id") or run_id
 started = datetime.now()
 
-print(f"Gold transformation starting - run_id: {run_id}")
-print(f"Target ADLS Gold Container: {GOLD_PATH}")
+logger = get_notebook_logger("nwretail.gold.transformation", run_id=run_id)
+logger.info("Gold transformation starting (run_id=%s, target=%s)", run_id, GOLD_PATH)
 
 # COMMAND ----------
 
@@ -64,10 +99,10 @@ def save_gold_table(df, tbl_name, zorder_cols=None, comment=None):
         t_type = next((r.data_type for r in desc if r.col_name == "Type"), "")
         t_loc = next((r.data_type for r in desc if r.col_name == "Location"), "")
         if t_type == "MANAGED" or (t_loc and not t_loc.startswith(GOLD_PATH)):
-            print(f"Migrating {full_table} from {t_loc or 'default managed'} to ADLS {target_path}...")
+            logger.info("Migrating %s from %s to ADLS %s", full_table, t_loc or 'default managed', target_path)
             spark.sql(f"DROP TABLE IF EXISTS {full_table}")
     except Exception as e:
-        print(f"Info checking {full_table}: {e}")
+        logger.debug("Table pre-check for %s: %s", full_table, e)
 
     df.write.format("delta") \
         .mode("overwrite") \
@@ -81,7 +116,7 @@ def save_gold_table(df, tbl_name, zorder_cols=None, comment=None):
         spark.sql(f"OPTIMIZE {full_table} ZORDER BY ({', '.join(zorder_cols)})")
         
     row_count = df.count()
-    print(f"✓ {full_table} successfully written to {target_path} ({row_count} rows)")
+    logger.info("Table written: %s -> %s (rows=%d)", full_table, target_path, row_count)
     return row_count
 
 # COMMAND ----------
@@ -335,7 +370,7 @@ LEFT JOIN {GOLD}.dim_store st ON fs.store_key = st.store_key
 GROUP BY st.store_key, st.store_name, st.city, st.region, st.store_type
 """)
 
-print("Analytics views created")
+logger.info("Analytics views created successfully")
 
 # COMMAND ----------
 
@@ -360,5 +395,5 @@ result = {
     }
 }
 
-print(json.dumps(result, indent=2))
+logger.info("Gold Transformation Summary:\n%s", json.dumps(result, indent=2))
 dbutils.notebook.exit(json.dumps(result))

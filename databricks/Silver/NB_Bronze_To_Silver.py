@@ -37,6 +37,7 @@ import json
 import time
 import uuid
 
+# _silver_logger is available from NB_Silver_Common via %run above
 pipeline_started = time.time()
 RUN_ID = _arg("run_id").strip() or str(uuid.uuid4())
 BATCH_ID = _arg("batch_id").strip() or f"{RUN_ID}-silver"
@@ -61,9 +62,9 @@ DEPENDENCIES = {
     for e in ENTITY_ORDER
 }
 
-print(f"[orchestrator] run_id={RUN_ID} batch_id={BATCH_ID} continue_on_error={CONTINUE_ON_ERROR}")
+_silver_logger.info("[orchestrator] run_id=%s batch_id=%s continue_on_error=%s", RUN_ID, BATCH_ID, CONTINUE_ON_ERROR)
 for e in ENTITY_ORDER:
-    print(f"  {e:20} <- {DEPENDENCIES[e] or 'no dependencies'}")
+    _silver_logger.info("  entity=%-20s dependencies=%s", e, DEPENDENCIES[e] or 'none')
 
 # COMMAND ----------
 
@@ -100,7 +101,7 @@ def _recover_failed(entity, exc_message):
                 for k, v in rows[0].asDict().items()
             }
     except Exception as exc:
-        print(f"[orchestrator] could not read back audit row for {entity}: {exc}")
+        _silver_logger.warning("[orchestrator] could not read back audit row for %s: %s", entity, exc)
     return {"entity": entity, "status": "FAILED", "error_message": exc_message[:2000]}
 
 
@@ -123,7 +124,7 @@ for entity in ENTITY_ORDER:
         status_by_entity[entity] = "SKIPPED"
         _log_skipped(entity, reason)
         results.append({"entity": entity, "status": "SKIPPED", "skip_reason": reason})
-        print(f"[SKIPPED] {entity}: {reason}")
+        _silver_logger.warning("[SKIPPED] entity=%s reason=%s", entity, reason)
         continue
 
     t0 = time.time()
@@ -144,7 +145,7 @@ for entity in ENTITY_ORDER:
     child["wall_seconds"] = round(time.time() - t0, 1)
     status_by_entity[entity] = child.get("status") or "UNKNOWN"
     results.append(child)
-    print(f"[{status_by_entity[entity]}] {entity}")
+    _silver_logger.info("[%s] entity=%s wall_seconds=%s", status_by_entity[entity], entity, child.get("wall_seconds"))
 
 # COMMAND ----------
 
@@ -200,8 +201,14 @@ summary = {
     "results": results,
 }
 
-print(f"[orchestrator] {overall}: "
-      f"{summary['entities_succeeded']} ok / {summary['entities_failed']} failed / "
-      f"{summary['entities_skipped']} skipped in {summary['duration_seconds']}s")
+_silver_logger.info(
+    "[orchestrator] %s: %d ok / %d failed / %d skipped in %ss",
+    overall,
+    summary["entities_succeeded"],
+    summary["entities_failed"],
+    summary["entities_skipped"],
+    summary["duration_seconds"]
+)
+_silver_logger.info("Silver Pipeline Summary:\n%s", json.dumps(summary, default=str, indent=2))
 
 dbutils.notebook.exit(json.dumps(summary, default=str))

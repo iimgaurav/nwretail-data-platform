@@ -19,14 +19,40 @@ dbutils.widgets.text("retention_hours", "168")
 # COMMAND ----------
 
 import json
+import logging
+import sys
 from datetime import datetime
+
+class DatabricksLogFormatter(logging.Formatter):
+    """
+    Production log formatter for Databricks / Azure Monitor.
+    Emits structured, human-readable and machine-parseable log lines:
+    ISO-Timestamp [LEVEL] [logger] message
+    """
+    def format(self, record):
+        ts = self.formatTime(record, "%Y-%m-%dT%H:%M:%S")
+        base = f"{ts} [{record.levelname:^7}] [{record.name}] {record.getMessage()}"
+        if record.exc_info:
+            base += "\n" + self.formatException(record.exc_info)
+        return base
+
+def get_notebook_logger(name: str) -> logging.Logger:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+    
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    handler.setFormatter(DatabricksLogFormatter())
+    logger.addHandler(handler)
+    logger.propagate = False
+    return logger
 
 CATALOG = dbutils.widgets.get("catalog").strip() or "nwretail_databricks_dev"
 RETENTION_HOURS = int(dbutils.widgets.get("retention_hours").strip() or "168")
 
-print(f"Delta Maintenance Job Starting at {datetime.now().isoformat()}")
-print(f"Catalog: {CATALOG}")
-print(f"Vacuum Retention Threshold: {RETENTION_HOURS} hours")
+logger = get_notebook_logger("nwretail.maintenance.delta")
+logger.info("Delta Maintenance Job Starting (Catalog=%s, RetentionHours=%d)", CATALOG, RETENTION_HOURS)
 
 # Definition of tables and their optimal Z-ORDER keys
 MAINTENANCE_TARGETS = [
@@ -72,29 +98,29 @@ for item in MAINTENANCE_TARGETS:
     full_table_name = f"{CATALOG}.{item['schema']}.{item['table']}"
     
     if not spark.catalog.tableExists(full_table_name):
-        print(f"Skipping {full_table_name} (table does not exist yet)")
+        logger.warning("Skipping %s (table does not exist yet)", full_table_name)
         results["skipped"].append(full_table_name)
         continue
         
-    print(f"\nProcessing {full_table_name}...")
+    logger.info("Processing maintenance for %s", full_table_name)
     try:
         # 1. OPTIMIZE with Z-ORDER
         zorder_clause = f"ZORDER BY ({', '.join(item['zorder'])})" if item.get("zorder") else ""
         optimize_sql = f"OPTIMIZE {full_table_name} {zorder_clause}"
-        print(f"Running: {optimize_sql}")
+        logger.info("Executing: %s", optimize_sql)
         spark.sql(optimize_sql)
         
         # 2. VACUUM historical files
         vacuum_sql = f"VACUUM {full_table_name} RETAIN {RETENTION_HOURS} HOURS"
-        print(f"Running: {vacuum_sql}")
+        logger.info("Executing: %s", vacuum_sql)
         spark.sql(vacuum_sql)
         
         results["completed"].append(full_table_name)
-        print(f"✓ Maintenance succeeded for {full_table_name}")
+        logger.info("Maintenance successfully completed for %s", full_table_name)
         
     except Exception as exc:
         err = f"Failed maintenance on {full_table_name}: {str(exc)}"
-        print(f"✗ ERROR: {err}")
+        logger.error("Maintenance failed on %s: %s", full_table_name, exc, exc_info=True)
         results["errors"].append(err)
         results["status"] = "PARTIAL"
 
@@ -105,8 +131,7 @@ for item in MAINTENANCE_TARGETS:
 
 # COMMAND ----------
 
-print("\n================ Maintenance Summary ================")
-print(json.dumps(results, indent=2))
-print("=====================================================")
+logger.info("Delta Maintenance Summary:\n%s", json.dumps(results, indent=2))
 
 dbutils.notebook.exit(json.dumps(results))
+

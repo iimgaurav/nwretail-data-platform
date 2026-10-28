@@ -30,6 +30,8 @@
 import time
 import uuid
 import json
+import logging
+import sys
 from datetime import datetime
 
 from pyspark.sql import DataFrame, Window, functions as F
@@ -37,6 +39,42 @@ from pyspark.sql.types import (
     StructType, StructField, StringType, LongType, DoubleType, TimestampType,
 )
 from delta.tables import DeltaTable
+
+
+class DatabricksLogFormatter(logging.Formatter):
+    """
+    Production log formatter for Databricks / Azure Monitor.
+    Emits structured, human-readable log lines:
+    ISO-Timestamp [LEVEL] [logger] [ctx] message
+    Designed to be composable with any appender (stdout, log4j bridge, etc.)
+    """
+    def __init__(self, context: str = ""):
+        super().__init__()
+        self.context = context
+
+    def format(self, record):
+        ts = self.formatTime(record, "%Y-%m-%dT%H:%M:%S")
+        ctx = f" [{self.context}]" if self.context else ""
+        base = f"{ts} [{record.levelname:^7}] [{record.name}]{ctx} {record.getMessage()}"
+        if record.exc_info:
+            base += "\n" + self.formatException(record.exc_info)
+        return base
+
+
+def get_notebook_logger(name: str, context: str = "") -> logging.Logger:
+    """
+    Creates or configures a production-grade logger attached to sys.stdout.
+    Clears existing handlers to avoid log duplication on Databricks cell re-runs.
+    """
+    _logger = logging.getLogger(name)
+    _logger.setLevel(logging.INFO)
+    _logger.handlers.clear()
+    _h = logging.StreamHandler(sys.stdout)
+    _h.setLevel(logging.INFO)
+    _h.setFormatter(DatabricksLogFormatter(context=context))
+    _logger.addHandler(_h)
+    _logger.propagate = False
+    return _logger
 
 STORAGE_ACCOUNT  = "nwretaildatalake65"
 BRONZE_CONTAINER = "bronze"
@@ -115,7 +153,7 @@ def _configure_auth():
     if mode == "auto":
         if _probe_uc():
             return "unity-catalog", "external locations via cred_nwretail_adls_mi"
-        print(
+        _silver_logger.warning(
             "[auth] Unity Catalog probe failed - falling back to account key. "
             "This fallback is logged; investigate the external location grant."
         )
@@ -136,10 +174,12 @@ def _configure_auth():
 
 
 AUTH_MODE, AUTH_DETAIL = _configure_auth()
-print(f"auth_mode  = {AUTH_MODE}")
-print(f"auth_detail= {AUTH_DETAIL}")
-print(f"bronze     = {BRONZE_PATH}")
-print(f"silver     = {SILVER_PATH}")
+
+# Module-level logger — named for the common library layer
+_silver_logger = get_notebook_logger("nwretail.silver.common", context=f"auth_mode={AUTH_MODE}")
+_silver_logger.info("auth_mode=%s detail=%s", AUTH_MODE, AUTH_DETAIL)
+_silver_logger.info("bronze=%s", BRONZE_PATH)
+_silver_logger.info("silver=%s", SILVER_PATH)
 
 # COMMAND ----------
 
@@ -478,10 +518,10 @@ def read_bronze(entity):
     try:
         if spark.catalog.tableExists(bronze_tbl):
             df = spark.table(bronze_tbl)
-            print(f"[read] {entity}: {df.count():,} rows <- Delta table {bronze_tbl}")
+            _silver_logger.info(f"[read] {entity}: {df.count():,} rows <- Delta table {bronze_tbl}")
             return df
     except Exception as exc:
-        print(f"[read] Note: Delta table check for {bronze_tbl} skipped ({exc}), checking CSV fallback")
+        _silver_logger.info(f"[read] Note: Delta table check for {bronze_tbl} skipped ({exc}), checking CSV fallback")
 
     # Fallback to raw CSV if Delta table does not exist yet
     df = (
@@ -491,7 +531,7 @@ def read_bronze(entity):
         .option("mode", "PERMISSIVE")
         .csv(bronze_path(entity))
     )
-    print(f"[read] {entity}: {df.count():,} rows <- CSV {bronze_path(entity)}")
+    _silver_logger.info(f"[read] {entity}: {df.count():,} rows <- CSV {bronze_path(entity)}")
     return df
 
 
@@ -507,7 +547,7 @@ def validate_schema(df, entity):
             f"Schema mismatch for {entity}: missing={missing} unexpected={extra}. "
             "Review the source change, then update BRONZE_SCHEMAS."
         )
-    print(f"[schema] {entity}: OK ({len(expected)} columns)")
+    _silver_logger.info(f"[schema] {entity}: OK ({len(expected)} columns)")
     return True
 
 
@@ -643,7 +683,7 @@ def deduplicate_exact(df, entity):
     before = df.count()
     out = df.dropDuplicates(["_row_hash"])
     removed = before - out.count()
-    print(f"[dedupe-exact] {entity}: removed {removed:,}")
+    _silver_logger.info(f"[dedupe-exact] {entity}: removed {removed:,}")
     return out, removed
 
 
@@ -670,7 +710,7 @@ def deduplicate_business_key(df, entity):
 
     removed = with_key.count() - out.count()
     n_null = null_key.count()
-    print(f"[dedupe-key] {entity}: removed {removed:,}; null-key rows quarantined {n_null:,}")
+    _silver_logger.info(f"[dedupe-key] {entity}: removed {removed:,}; null-key rows quarantined {n_null:,}")
     return out, null_key, removed
 
 
@@ -807,13 +847,13 @@ def merge_silver(df, entity):
     key = ENTITY_SPEC[entity]["key"]
 
     if df.limit(1).count() == 0:
-        print(f"[merge] {entity}: empty batch, nothing written")
+        _silver_logger.info(f"[merge] {entity}: empty batch, nothing written")
         return 0, 0
 
     if _ensure_table(df, name, path):
         df.write.mode("append").format("delta").save(path)
         n = df.count()
-        print(f"[merge] {entity}: initial load {n:,} rows")
+        _silver_logger.info(f"[merge] {entity}: initial load {n:,} rows")
         return n, 0
 
     updates = {c: f"s.`{c}`" for c in df.columns if c not in key}
@@ -828,7 +868,7 @@ def merge_silver(df, entity):
         .execute()
     )
     ins, upd = _merge_metrics(entity)
-    print(f"[merge] {entity}: inserted={ins:,} updated={upd:,}")
+    _silver_logger.info(f"[merge] {entity}: inserted={ins:,} updated={upd:,}")
     return ins, upd
 
 
@@ -836,7 +876,7 @@ def write_quarantine(df, entity, run_id, batch_id):
     """Append-only: a later run never destroys an earlier run's rejects."""
     n = df.count()
     if n == 0:
-        print(f"[quarantine] {entity}: 0 rows rejected")
+        _silver_logger.info(f"[quarantine] {entity}: 0 rows rejected")
         return 0
 
     out = (
@@ -847,7 +887,7 @@ def write_quarantine(df, entity, run_id, batch_id):
     path = f"{QUARANTINE_PATH}/{entity}/"
     _ensure_table(out, quarantine_table(entity), path)
     out.write.mode("append").option("mergeSchema", "true").format("delta").save(path)
-    print(f"[quarantine] {entity}: appended {n:,} rows")
+    _silver_logger.info(f"[quarantine] {entity}: appended {n:,} rows")
     return n
 
 
@@ -867,7 +907,7 @@ def _sweep_scd2_scratch(max_age_hours=24):
         for entry in dbutils.fs.ls(base):
             if entry.modificationTime / 1000.0 < cutoff:
                 dbutils.fs.rm(entry.path, True)
-                print(f"[scd2] swept stale scratch {entry.name}")
+                _silver_logger.info(f"[scd2] swept stale scratch {entry.name}")
     except Exception:
         pass
 
@@ -884,7 +924,7 @@ def apply_scd2(df, entity, run_id):
     tracked = ENTITY_SPEC[entity]["scd2"]["tracked"]
 
     if df.limit(1).count() == 0:
-        print(f"[scd2] {entity}: empty batch")
+        _silver_logger.info(f"[scd2] {entity}: empty batch")
         return 0, 0, spark.createDataFrame([], df.schema)
 
     if not spark.catalog.tableExists(name):
@@ -896,7 +936,7 @@ def apply_scd2(df, entity, run_id):
         _ensure_table(initial, name, path)
         initial.write.mode("append").format("delta").save(path)
         n = initial.count()
-        print(f"[scd2] {entity}: initial load {n:,} versions")
+        _silver_logger.info(f"[scd2] {entity}: initial load {n:,} versions")
         return n, 0, spark.createDataFrame([], initial.schema)
 
     tgt = DeltaTable.forName(spark, name)
@@ -987,7 +1027,7 @@ def apply_scd2(df, entity, run_id):
         try:
             dbutils.fs.rm(tmp_path, True)
         except Exception as exc:
-            print(f"[scd2] {entity}: could not drop scratch {tmp_path}: {exc}")
+            _silver_logger.info(f"[scd2] {entity}: could not drop scratch {tmp_path}: {exc}")
 
     late_out = (
         spark.createDataFrame(late_rows, late_schema)
@@ -995,7 +1035,7 @@ def apply_scd2(df, entity, run_id):
         else spark.createDataFrame([], late_schema)
     )
 
-    print(f"[scd2] {entity}: new={n_new:,} closed={n_closed:,} late={n_late:,}")
+    _silver_logger.info(f"[scd2] {entity}: new={n_new:,} closed={n_closed:,} late={n_late:,}")
     return n_new, n_closed, late_out
 
 
@@ -1061,7 +1101,7 @@ def write_run_log(metrics):
     row = tuple(metrics.get(c) for c in RUN_LOG_COLUMNS)
     df = spark.createDataFrame([row], RUN_LOG_SCHEMA)
     _append_ops(df, f"{CATALOG}.silver_ops.run_log", RUN_LOG_PATH)
-    print(f"[audit] run_log <- {metrics['entity']} status={metrics['status']}")
+    _silver_logger.info(f"[audit] run_log <- {metrics['entity']} status={metrics['status']}")
 
 
 def write_quality_summary(metrics, rule_counts):
@@ -1126,12 +1166,12 @@ def validate_target_uniqueness(entity):
                 f"{entity}: {bad_range} rows have effective_to < effective_from"
             )
 
-        print(f"[verify] {entity}: SCD2 invariants OK (exactly one current row per key)")
+        _silver_logger.info(f"[verify] {entity}: SCD2 invariants OK (exactly one current row per key)")
     else:
         dup = df.groupBy(*key).count().filter(F.col("count") > 1).count()
         if dup:
             raise RuntimeError(f"{entity}: {dup} duplicate business keys in silver")
-        print(f"[verify] {entity}: business-key uniqueness OK")
+        _silver_logger.info(f"[verify] {entity}: business-key uniqueness OK")
 
 
 # COMMAND ----------
@@ -1151,10 +1191,10 @@ def _maybe_persist(df, label):
     try:
         df = df.persist()
         df.count()
-        print(f"[cache] {label}: cached")
+        _silver_logger.info(f"[cache] {label}: cached")
         return df, True
     except Exception as exc:
-        print(f"[cache] {label}: persist unavailable ({type(exc).__name__}) - uncached")
+        _silver_logger.info(f"[cache] {label}: persist unavailable ({type(exc).__name__}) - uncached")
         return df, False
 
 
@@ -1204,7 +1244,7 @@ def execute_entity(entity, run_id=None, batch_id=None, notebook=None):
         conflicts = flag_business_attribute_conflicts(staged, entity)
         for rule, count in conflicts.items():
             if count:
-                print(f"[conflict] {entity}: {rule} groups={count}")
+                _silver_logger.info(f"[conflict] {entity}: {rule} groups={count}")
 
         scored, rule_counts = validate_business_rules(staged, entity)
         if conflicts:
@@ -1247,7 +1287,7 @@ def execute_entity(entity, run_id=None, batch_id=None, notebook=None):
         write_watermark(entity, watermark, run_id)
 
         metrics["status"] = "SUCCESS"
-        print(
+        _silver_logger.info(
             f"[done] {entity}: written={metrics['rows_written']:,} "
             f"quarantined={metrics['rows_quarantined']:,}"
         )
@@ -1256,7 +1296,7 @@ def execute_entity(entity, run_id=None, batch_id=None, notebook=None):
         metrics["status"] = "FAILED"
         metrics["error_class"] = type(exc).__name__
         metrics["error_message"] = str(exc)[:2000]
-        print(f"[FAILED] {entity}: {metrics['error_class']}: {metrics['error_message']}")
+        _silver_logger.info(f"[FAILED] {entity}: {metrics['error_class']}: {metrics['error_message']}")
         raise
 
     finally:
@@ -1270,7 +1310,7 @@ def execute_entity(entity, run_id=None, batch_id=None, notebook=None):
             write_run_log(metrics)
             write_quality_summary(metrics, rule_counts)
         except Exception as log_exc:
-            print(f"[audit-warning] could not persist audit rows: {log_exc}")
+            _silver_logger.info(f"[audit-warning] could not persist audit rows: {log_exc}")
 
     return {
         k: (v.isoformat() if isinstance(v, datetime) else v)
@@ -1278,5 +1318,5 @@ def execute_entity(entity, run_id=None, batch_id=None, notebook=None):
     }
 
 
-print("NB_Silver_Common v2 loaded.")
-print(f"entities = {ENTITY_ORDER}")
+_silver_logger.info("NB_Silver_Common v2 loaded.")
+_silver_logger.info(f"entities = {ENTITY_ORDER}")
