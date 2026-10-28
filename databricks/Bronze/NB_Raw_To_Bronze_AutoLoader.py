@@ -40,23 +40,27 @@ def _get_arg(name, default=""):
 
 CATALOG = _get_arg("catalog", "nwretail_databricks_dev")
 STORAGE_ACCOUNT = _get_arg("storage_account", "nwretaildatalake65")
+SOURCE_CONTAINER = _get_arg("source_container", "bronze")
 RUN_ID = _get_arg("run_id") or str(uuid.uuid4())
 BATCH_ID = _get_arg("batch_id") or f"bronze-{RUN_ID[:8]}"
 
-RAW_PATH = f"abfss://raw@{STORAGE_ACCOUNT}.dfs.core.windows.net"
-BRONZE_PATH = f"abfss://bronze@{STORAGE_ACCOUNT}.dfs.core.windows.net"
-SCHEMA_STORE = f"{BRONZE_PATH}/_schemas"
-CHECKPOINT_STORE = f"{BRONZE_PATH}/_checkpoints"
+SOURCE_PATH = f"abfss://{SOURCE_CONTAINER}@{STORAGE_ACCOUNT}.dfs.core.windows.net"
+BRONZE_DELTA_PATH = f"abfss://bronze@{STORAGE_ACCOUNT}.dfs.core.windows.net/_delta_tables"
+SCHEMA_STORE = f"abfss://bronze@{STORAGE_ACCOUNT}.dfs.core.windows.net/_delta_schemas"
+CHECKPOINT_STORE = f"abfss://bronze@{STORAGE_ACCOUNT}.dfs.core.windows.net/_delta_checkpoints"
 
 print(f"Bronze Ingestion starting - Run ID: {RUN_ID}, Batch ID: {BATCH_ID}")
-print(f"Source RAW Path: {RAW_PATH}")
-print(f"Target BRONZE Path: {BRONZE_PATH}")
+print(f"Source Landing Path: {SOURCE_PATH}")
+print(f"Target Delta Path: {BRONZE_DELTA_PATH}")
 print(f"Target Catalog: {CATALOG}.bronze")
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## 1. Schema Initialization
+# MAGIC Ensures the Unity Catalog `bronze` schema exists.
+# MAGIC
+# MAGIC # COMMAND ----------
 
 # COMMAND ----------
 
@@ -90,9 +94,9 @@ results = {
 
 for entity in ENTITIES:
     entity_name = entity["name"]
-    source_folder = f"{RAW_PATH}/{entity['folder']}"
+    source_folder = f"{SOURCE_PATH}/{entity['folder']}"
     target_table = f"{CATALOG}.bronze.{entity_name}"
-    target_location = f"{BRONZE_PATH}/{entity_name}"
+    target_location = f"{BRONZE_DELTA_PATH}/{entity_name}"
     checkpoint_location = f"{CHECKPOINT_STORE}/{entity_name}"
     schema_location = f"{SCHEMA_STORE}/{entity_name}"
     
@@ -112,7 +116,7 @@ for entity in ENTITIES:
             .option("cloudFiles.schemaEvolutionMode", "addNewColumns")
             .load(source_folder)
             .withColumn("_ingested_at", F.current_timestamp())
-            .withColumn("_source_file", F.input_file_name())
+            .withColumn("_source_file", F.col("_metadata.file_path"))
             .withColumn("_batch_id", F.lit(BATCH_ID))
             .withColumn("_run_id", F.lit(RUN_ID))
         )
@@ -152,4 +156,8 @@ print("\n================ Bronze Ingestion Summary ================")
 print(json.dumps(results, indent=2))
 print("==========================================================")
 
+if results["status"] == "FAILED":
+    raise RuntimeError(f"Bronze Auto Loader Ingestion failed with errors: {results['errors']}")
+
 dbutils.notebook.exit(json.dumps(results))
+
